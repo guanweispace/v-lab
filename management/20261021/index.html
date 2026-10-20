@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>鏡片排版編輯器</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+
+:root{
+  --bg:#EDF1F0; --panel:#FFFFFF; --ink:#14232A; --muted:#5A6B70; --line:#CFD8D6; --field:#F6F8F8; --stage:#C9D0CF;
+  --accent:#0E7C86; --accent-ink:#FFFFFF; --accent-soft:#DDF0F1;
+  --warn:#8A4300; --warn-bg:#FFF1DC; --ok:#0B6B4F; --ok-bg:#E1F3EA; --err:#A4262C; --err-bg:#FCE7E7;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F181C; --panel:#17242A; --ink:#E4ECEA; --muted:#93A5A8; --line:#2B3C43; --field:#1D2D34; --stage:#0A1114;
+    --accent:#55C2CA; --accent-ink:#06262A; --accent-soft:#143A40;
+    --warn:#F0B878; --warn-bg:#3A2A12; --ok:#7AD3AE; --ok-bg:#12342A; --err:#F29A9A; --err-bg:#3B1A1C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F181C; --panel:#17242A; --ink:#E4ECEA; --muted:#93A5A8; --line:#2B3C43; --field:#1D2D34; --stage:#0A1114;
+  --accent:#55C2CA; --accent-ink:#06262A; --accent-soft:#143A40;
+  --warn:#F0B878; --warn-bg:#3A2A12; --ok:#7AD3AE; --ok-bg:#12342A; --err:#F29A9A; --err-bg:#3B1A1C;
+}
+html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+body{margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; font-size:14px; line-height:1.5; font-variant-numeric:tabular-nums}
+.app{height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto}
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:6px 10px; background:var(--panel); border-bottom:1px solid var(--line)}
+.bar h1{font-size:15px; margin:0 8px 0 2px; font-weight:700; white-space:nowrap}
+.sep{width:1px; align-self:stretch; background:var(--line); margin:2px 4px}
+.grow{flex:1}
+button,.filebtn{font:inherit; color:var(--ink); background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; white-space:nowrap}
+button:hover:not(:disabled),.filebtn:hover{border-color:var(--accent)}
+button:disabled{opacity:.45; cursor:not-allowed}
+button.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:700}
+button[aria-pressed=true]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); font-weight:700}
+.grp{display:inline-flex}
+.grp button{border-radius:0; margin-left:-1px}
+.grp button:first-child{border-radius:6px 0 0 6px; margin-left:0}
+.grp button:last-child{border-radius:0 6px 6px 0}
+.filebtn{display:inline-block; position:relative}
+.filebtn input{position:absolute; width:1px; height:1px; opacity:0}
+:focus-visible, .filebtn:focus-within{outline:2px solid var(--accent); outline-offset:1px}
+.main{display:grid; grid-template-columns:270px minmax(0,1fr) 300px; min-height:0}
+.side{background:var(--panel); overflow-y:auto; min-height:0; padding:10px 12px 24px}
+.side.l{border-right:1px solid var(--line)} .side.r{border-left:1px solid var(--line)}
+.stagebox{position:relative; min-height:0; min-width:0; background:var(--stage); overflow:hidden}
+#stage{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:default}
+.hud{position:absolute; left:10px; bottom:10px; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:3px 8px; font-size:12px; color:var(--muted); pointer-events:none}
+@media (max-width:980px){
+  html,body{height:auto} .app{height:auto; display:block}
+  .main{display:block} .stagebox{height:62vh; min-height:320px} .side{overflow:visible; border:0; border-top:1px solid var(--line)}
+}
+h2{font-size:13px; font-weight:700; margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--line)}
+h2:first-child{margin-top:0}
+details{border-bottom:1px solid var(--line); padding:6px 0}
+details summary{font-weight:700; font-size:13px; cursor:pointer; padding:2px 0}
+label{display:block; font-size:12px; color:var(--muted)}
+input[type=number],select,input[type=text]{width:100%; font:inherit; color:var(--ink); background:var(--field); border:1px solid var(--line); border-radius:6px; padding:4px 6px; margin-top:2px}
+input[type=number]{text-align:right}
+input[type=range]{width:100%; accent-color:var(--accent); margin:2px 0}
+input[type=checkbox]{accent-color:var(--accent); width:15px; height:15px; margin:0 6px 0 0; vertical-align:-2px}
+.two{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px 10px}
+.row{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.hint{font-size:12px; color:var(--muted); margin:6px 0 0}
+.lib{display:grid; gap:6px; margin-top:8px}
+.lib .item{display:grid; grid-template-columns:44px minmax(0,1fr); gap:2px 8px; align-items:center; padding:4px; border:1px solid var(--line); border-radius:6px}
+.lib .item canvas{width:44px; height:44px; grid-row:span 2; background:#fff; border-radius:4px}
+.lib .nm{font-size:12px; word-break:break-all; line-height:1.3}
+.lib .acts{display:flex; gap:4px; flex-wrap:wrap}
+.lib .acts button{padding:2px 7px; font-size:11.5px}
+.lib .acts button.del{color:var(--err)}
+.lib .acts button.del.armed{background:var(--err); border-color:var(--err); color:#fff; font-weight:700}
+.lib .used{font-size:11px; color:var(--muted)}
+#nav{display:block; width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:4px; cursor:pointer}
+dl.read{display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin:8px 0 0}
+dl.read dt{font-size:11.5px; color:var(--muted)} dl.read dd{margin:0; font-weight:700}
+dl.read dd small{font-weight:400; color:var(--muted); margin-left:4px}
+.note{font-size:12px; border-radius:6px; padding:6px 8px; margin:8px 0 0}
+.note.warn{background:var(--warn-bg); color:var(--warn)} .note.ok{background:var(--ok-bg); color:var(--ok)} .note.err{background:var(--err-bg); color:var(--err)}
+.status{display:flex; gap:12px; align-items:center; padding:5px 12px; background:var(--panel); border-top:1px solid var(--line); font-size:12.5px; min-height:30px}
+.status #facts{color:var(--muted); white-space:nowrap}
+.status #msgs{display:flex; gap:6px 14px; flex-wrap:wrap; min-width:0}
+.status .m.err{color:var(--err); font-weight:700} .status .m.warn{color:var(--warn)} .status .m.ok{color:var(--ok)}
+kbd{font:inherit; font-size:11px; border:1px solid var(--line); border-radius:4px; padding:0 4px; background:var(--field)}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <h1>鏡片排版編輯器</h1>
+    <span style="font-size:.75rem;opacity:.7;white-space:nowrap">本版產生時間：2026 年 10 月 21 日（三）07:25（台灣時間）</span>
+    <label class="filebtn">開啟專案<input type="file" id="projOpen" accept=".json,application/json"></label>
+    <button type="button" id="projSave">儲存專案</button>
+    <span class="sep"></span>
+    <button type="button" id="undo" title="復原 Ctrl+Z" disabled>復原</button>
+    <button type="button" id="redo" title="重做 Ctrl+Y" disabled>重做</button>
+    <span class="sep"></span>
+    <span class="grp" role="group" aria-label="檢視">
+      <button type="button" id="vTray" aria-pressed="true">整盤</button>
+      <button type="button" id="vLens" aria-pressed="false">單片</button>
+    </span>
+    <span class="grp" id="showGrp" role="group" aria-label="單片顯示" hidden>
+      <button type="button" data-show="edit" aria-pressed="true">編輯</button>
+      <button type="button" data-show="before" aria-pressed="false">補償前</button>
+      <button type="button" data-show="after" aria-pressed="false">補償後</button>
+    </span>
+    <span class="sep"></span>
+    <button type="button" id="zOut" title="縮小">−</button>
+    <button type="button" id="zFit" title="符合視窗">符合視窗</button>
+    <button type="button" id="zIn" title="放大">＋</button>
+    <span class="grow"></span>
+    <span id="saveNote" class="hint" style="margin:0"></span>
+    <button type="button" class="primary exp" id="save" disabled>輸出整盤 PDF</button>
+    <button type="button" class="exp" id="savePages" disabled title="一個 PDF 檔，每頁一片鏡片">每片一頁 PDF</button>
+    <button type="button" class="exp" id="saveFiles" disabled title="每片鏡片各存成一個 PDF 檔">每片各一檔</button>
+  </div>
+
+  <div class="main">
+    <div class="side l">
+      <h2>圖案庫</h2>
+      <div class="row" style="margin-top:0">
+        <label class="filebtn">匯入圖檔<input type="file" id="file" accept="application/pdf,.pdf,image/*" multiple></label>
+      </div>
+      <div class="row">
+        <select id="sampleSel" aria-label="測試圖案" style="flex:1; width:auto; margin:0">
+          <option value="star">解析度標靶</option><option value="iris">虹膜紋理</option><option value="dots">網點漸層</option><option value="flower">花瓣</option><option value="target">放射線與圓點</option>
+        </select>
+        <button type="button" id="sample">加入</button>
+      </div>
+      <p class="hint">可一次選多個檔。PDF 一頁有多個圖案會自動拆開。新圖案會依序放進空格。</p>
+      <div class="lib" id="lib"></div>
+      <div class="row" id="libBulk" hidden><button type="button" id="pruneLib">刪除沒用到的圖案</button></div>
+
+      <details open>
+        <summary>盤面規格</summary>
+        <div class="two" style="margin-top:6px">
+          <label>橫向幾格<input type="number" id="cols" value="4" min="1" max="20" step="1"></label>
+          <label>直向幾格<input type="number" id="rows" value="3" min="1" max="20" step="1"></label>
+          <label>橫向格距 mm<input type="number" id="pitchX" value="20" min="1" step="0.1"></label>
+          <label>直向格距 mm<input type="number" id="pitchY" value="20" min="1" step="0.1"></label>
+          <label>第一格圓心 X<input type="number" id="orgX" value="15" min="0" step="0.1"></label>
+          <label>第一格圓心 Y<input type="number" id="orgY" value="15" min="0" step="0.1"></label>
+          <label>頁面寬 mm<input type="number" id="pageW" value="90" min="1" step="0.1"></label>
+          <label>頁面高 mm<input type="number" id="pageH" value="70" min="1" step="0.1"></label>
+          <label>輸出 DPI<select id="dpi"><option>600</option><option selected>1200</option><option>1800</option><option>2400</option><option>3600</option><option>4800</option></select></label>
+          <label>背景<select id="bgMode"><option value="orig" selected>照原圖去背</option><option value="mask">外圈與瞳孔洞透明（原圖透明處補白）</option><option value="white">白色也透明（不印白墨）</option><option value="opaque">全部白底</option></select></label>
+        </div>
+        <p class="hint">格號由左上往下排，排滿一直排再換右邊一排。</p>
+        <p class="hint">背景：「照原圖去背」原圖透明的地方輸出也透明（PDF 沒畫東西的地方也算透明），外圈與瞳孔洞一律透明；「外圈與瞳孔洞透明」會把原圖透明處補成白色；工廠不印白墨時選「白色也透明」，白色變透明、淺色變半透明，疊在白底上看起來不變。輸出的每一格是不失真的點陣圖（補償是逐點計算的，無法保留向量）。DPI 越高放大越細，3600、4800 檔案較大、計算較久（整盤可能要一兩分鐘）。</p>
+      </details>
+      <details open>
+        <summary>預設參數</summary>
+        <div class="two" style="margin-top:6px">
+          <label>內徑 mm<input type="number" id="innerD" value="5" min="0" max="30" step="0.1"></label>
+          <label>外徑 mm<input type="number" id="outerD" value="13.5" min="0.1" max="30" step="0.1"></label>
+          <label>球面半徑 R mm<input type="number" id="R" value="8.6" min="1" max="50" step="0.1"></label>
+          <label>α<input type="number" id="alphaNum" min="-5" max="5" step="0.05" value="1"></label>
+          <label>油墨密度 %<input type="number" id="ink" min="10" max="100" step="1" value="70"></label>
+        </div>
+        <input type="range" id="alpha" min="-5" max="5" step="0.05" value="1" aria-label="α">
+        <p class="hint">α 正值：外徑保持、往中心降低。負值：內徑保持、往外徑降低。</p>
+        <p class="hint">油墨密度：照訂單明細上的「油墨密度」填。100% = 原圖顏色；越低顏色越淡（上墨越少）。目前是整體調淡，網點（Halftone）等工廠確認做法後再加。</p>
+      </details>
+      <details>
+        <summary>α 對照盤</summary>
+        <div class="two" style="margin-top:6px">
+          <label>第一格 α<input type="number" id="aFrom" value="-1" min="-5" max="5" step="0.05"></label>
+          <label>最後一格 α<input type="number" id="aTo" value="3" min="-5" max="5" step="0.05"></label>
+        </div>
+        <div class="row"><button type="button" id="sweep">依格號分配 α</button></div>
+      </details>
+    </div>
+
+    <div class="stagebox" id="stagebox">
+      <canvas id="stage" aria-label="編輯畫布"></canvas>
+      <div class="hud" id="hud"></div>
+    </div>
+
+    <div class="side r">
+      <h2>導覽</h2>
+      <canvas id="nav" aria-label="整盤導覽，點一格來選取"></canvas>
+
+      <h2 id="slotTitle">第 1 格</h2>
+      <label>圖案<select id="sPat"></select></label>
+      <div id="slotBody">
+        <div class="row">
+          <button type="button" data-fit="circle" title="把偵測到的圖案外緣對齊外徑，並置中">自動對齊</button>
+          <button type="button" data-fit="cover" title="圖案短邊貼齊外徑，外圈不留白">填滿外徑</button>
+          <button type="button" data-fit="contain" title="整張圖都放進外徑裡，不會被切到">完整放入</button>
+          <button type="button" data-fit="center" title="只把圖案移回正中間">置中</button>
+        </div>
+        <p class="note" id="fitNote" hidden></p>
+        <div class="two" style="margin-top:8px">
+          <label>左右位置 mm<input type="number" id="sX" step="0.05"></label>
+          <label>上下位置 mm<input type="number" id="sY" step="0.05"></label>
+          <label>大小 %<input type="number" id="sScale" min="5" max="2000" step="1"></label>
+          <label>旋轉 °<input type="number" id="sRot" min="-360" max="360" step="1"></label>
+        </div>
+        <p class="hint">在畫布上：拖曳圖案移動，拉四角縮放，拉上方圓點旋轉（按住 <kbd>Shift</kbd> 每 15° 一格）。方向鍵微調位置。</p>
+
+        <h2>這一格的補償</h2>
+        <div class="two">
+          <label>α<input type="number" id="sAlpha" min="-5" max="5" step="0.05"></label>
+          <label>球面半徑 R mm<input type="number" id="sR" min="1" max="50" step="0.1"></label>
+          <label>內徑 mm<input type="number" id="sInner" min="0" max="30" step="0.1"></label>
+          <label>外徑 mm<input type="number" id="sOuter" min="0.1" max="30" step="0.1"></label>
+          <label>油墨密度 %<input type="number" id="sInk" min="10" max="100" step="1"></label>
+        </div>
+        <p class="hint">留空就沿用預設參數。</p>
+        <dl class="read">
+          <div><dt>外徑處</dt><dd id="rOut">–</dd></div>
+          <div><dt>內徑處</dt><dd id="rIn">–</dd></div>
+          <div><dt>最大模糊 σ</dt><dd id="rSig">–</dd></div>
+          <div><dt>外徑處傾角</dt><dd id="rAng">–</dd></div>
+        </dl>
+        <div class="row">
+          <button type="button" id="copyAll">設定套用到全部</button>
+          <button type="button" id="resetSlot">重設這格</button>
+          <button type="button" id="clearSlot">清空這格</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status"><span id="facts"></span><span id="msgs" aria-live="polite"></span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+"use strict";
+const MM_PER_PT = 25.4 / 72, ROI_MARGIN_MM = 0.2, MAX_ROI_PX = 4000, PREVIEW_DPI = 500, MAX_SLOTS = 120;
+const $ = id => document.getElementById(id);
+const tick = () => new Promise(r => setTimeout(r, 0));
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+const st = {
+  lib: [],                 // 圖案庫目前顯示的圖案：{id, name, kind, cv|page, w, h, circle, detected, box, proxy, thumb, src}
+  pool: new Map(),         // 這次開啟後匯入過的所有圖案（含已刪除的），讓「復原」能把刪掉的圖案找回來
+  files: new Map(),        // 匯入的原始檔（存專案用）：key -> {name, type, b64}
+  slots: [], dims: { cols: 0, rows: 0 },     // 每格：{pat, ov, px, py, s, rot, thumb, key, bad}
+  sel: 0, run: 0, busy: false, nextId: 1, nextFile: 1,
+  full: null,              // 選取格的全解析度結果 {key, orig, comp, side}
+};
+const view = { mode: "tray", show: "edit", tray: null, lens: null };   // tray/lens: {z(px/mm), x, y}
+
+/* ---------------- 參數與數學模型 ---------------- */
+function readTray() {
+  const n = id => +$(id).value;
+  return { cols: Math.round(n("cols")), rows: Math.round(n("rows")), pitchX: n("pitchX"), pitchY: n("pitchY"),
+           orgX: n("orgX"), orgY: n("orgY"), pageW: n("pageW"), pageH: n("pageH"), dpi: n("dpi"), bg: $("bgMode").value, transparent: $("bgMode").value !== "opaque" };
+}
+function readDefaults() { return { innerD: +$("innerD").value, outerD: +$("outerD").value, R: +$("R").value, alpha: +$("alphaNum").value, ink: +$("ink").value }; }
+function trayErrors(t) {
+  const e = [];
+  if (!(t.cols >= 1 && t.rows >= 1)) e.push("橫向、直向都至少要 1 格。");
+  else if (t.cols * t.rows > MAX_SLOTS) e.push(`格數太多（上限 ${MAX_SLOTS} 格）。`);
+  if (!(t.pitchX > 0 && t.pitchY > 0)) e.push("格距必須大於 0。");
+  if (!(t.pageW > 0 && t.pageH > 0)) e.push("頁面尺寸必須大於 0。");
+  if (!(t.orgX >= 0 && t.orgY >= 0)) e.push("第一格圓心不可為負值。");
+  return e;
+}
+function paramErrors(p, dpi) {
+  const e = [];
+  if (!(p.outerD > 0)) e.push("外徑必須大於 0。");
+  else if (!(p.innerD >= 0)) e.push("內徑不可為負值。");
+  else if (p.innerD >= p.outerD) e.push("內徑必須小於外徑。");
+  else if (!(p.R > 0) || p.outerD / 2 >= p.R) e.push(`外徑的一半（${(p.outerD / 2).toFixed(2)} mm）必須小於球面半徑 R（${(+p.R).toFixed(2)} mm）。`);
+  else if (!(Math.abs(p.alpha) <= 5)) e.push("α 必須在 -5 到 5 之間。");
+  else if (!(p.ink >= 10 && p.ink <= 100)) e.push("油墨密度必須在 10% 到 100% 之間。");
+  else if (p.outerD / 25.4 * dpi > MAX_ROI_PX) e.push(`外徑 × DPI 超過 ${MAX_ROI_PX} px，請降低解析度。`);
+  return e;
+}
+/* s(r)：半徑 r (mm) 處保留的解析度比例。
+   α ≥ 0：外徑處 = 1，往中心降低。α < 0：內徑處 = 1，往外徑降低。 */
+function resScale(r, p) {
+  const ro = p.outerD / 2, ri = p.innerD / 2, R2 = p.R * p.R;
+  const rc = Math.min(Math.max(r, p.alpha < 0 ? ri : 0), ro), ref = p.alpha < 0 ? ri : ro;
+  return Math.pow((R2 - ref * ref) / (R2 - rc * rc), p.alpha / 2);
+}
+const sigmaOf = s => { const k = 1 / s; return 0.5 * Math.sqrt(Math.max(k * k - 1, 0)); };
+
+/* ---------------- 格子：格號由左上往下，排滿一直排再往右 ---------------- */
+const newSlot = () => ({ pat: null, ov: {}, px: 0, py: 0, s: 1, rot: 0, thumb: null, key: "", bad: false });
+const colOf = i => Math.floor(i / st.dims.rows), rowOf = i => i % st.dims.rows;
+function syncSlots(t) {
+  if (t.cols === st.dims.cols && t.rows === st.dims.rows) return;
+  const old = st.slots, oc = st.dims.cols, or = st.dims.rows, next = [];
+  for (let c = 0; c < t.cols; c++) for (let r = 0; r < t.rows; r++) next.push((c < oc && r < or && old[c * or + r]) || newSlot());
+  st.slots = next; st.dims = { cols: t.cols, rows: t.rows }; st.sel = Math.min(st.sel, next.length - 1);
+}
+function slotP(i) {
+  const d = readDefaults(), o = st.slots[i].ov, pick = k => (o[k] === undefined || Number.isNaN(o[k])) ? d[k] : o[k];
+  return { innerD: pick("innerD"), outerD: pick("outerD"), R: pick("R"), alpha: pick("alpha"), ink: pick("ink") };
+}
+const slotCenter = (i, t) => ({ x: t.orgX + colOf(i) * t.pitchX, y: t.orgY + rowOf(i) * t.pitchY });
+const getPat = id => st.lib.find(p => p.id === id) || null;
+const slotKey = (s, p) => [s.pat, p.innerD, p.outerD, p.R, p.alpha, p.ink, s.px, s.py, s.s, s.rot].join("|");
+
+/* ---------------- 圖案在格子裡的位置 ----------------
+   來源座標 u（圖片是像素、PDF 是 pt）→ 以該格圓心為原點的 mm：
+   mm = (px,py) + 旋轉(u − 圖案框中心) × 倍率。圖案框中心永遠落在 (px,py)，所以縮放、旋轉都繞著它。 */
+const baseMM = (pat, p) => pat.kind === "pdf" ? MM_PER_PT : (p.outerD / 2) / pat.circle.r;     // 大小 100% 時，每個來源單位是幾 mm
+function slotMat(pat, s, p) {
+  const k = baseMM(pat, p) * s.s, th = s.rot * Math.PI / 180, co = Math.cos(th), si = Math.sin(th), b = pat.box;
+  return [co * k, si * k, -si * k, co * k, s.px - (co * b.cx - si * b.cy) * k, s.py - (si * b.cx + co * b.cy) * k];
+}
+const apply = (m, x, y) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] });
+/* 把偵測到的圖案圓心放到格子正中間 */
+function centerCircle(pat, s, p) {
+  const k = baseMM(pat, p) * s.s, th = s.rot * Math.PI / 180, co = Math.cos(th), si = Math.sin(th), dx = pat.circle.cx - pat.box.cx, dy = pat.circle.cy - pat.box.cy;
+  s.px = -(co * dx - si * dy) * k; s.py = -(si * dx + co * dy) * k;
+}
+function fitSlot(i, kind) {
+  const s = st.slots[i], pat = getPat(s.pat); if (!pat) return;
+  const p = slotP(i), k0 = baseMM(pat, p), b = pat.box, D = p.outerD;
+  if (kind === "circle") { s.s = 1; centerCircle(pat, s, p); }
+  else if (kind === "cover") { s.s = D * 1.004 / (Math.min(b.w, b.h) * k0); s.px = s.py = 0; }      // 多留一點點，邊緣才不會露白
+  else if (kind === "contain") { s.s = D / (Math.hypot(b.w, b.h) * k0); s.px = s.py = 0; }
+  else { s.px = s.py = 0; }
+  s.px = +s.px.toFixed(3); s.py = +s.py.toFixed(3); s.s = +s.s.toFixed(4);
+}
+function setSlotPattern(i, id) { const s = st.slots[i]; s.pat = id; s.thumb = null; s.key = ""; s.s = 1; s.rot = 0; s.px = s.py = 0; if (id) fitSlot(i, "circle"); }
+/* 圖案蓋不蓋得住外圈、會不會被切到 */
+function fitReport(i) {
+  const s = st.slots[i], pat = getPat(s.pat); if (!pat) return null;
+  const p = slotP(i), R = p.outerD / 2;
+  if (pat.kind === "pdf" || pat.detected) {
+    const r = pat.circle.r * baseMM(pat, p) * s.s, k = baseMM(pat, p) * s.s, th = s.rot * Math.PI / 180;
+    const dx = pat.circle.cx - pat.box.cx, dy = pat.circle.cy - pat.box.cy, cx = s.px + (Math.cos(th) * dx - Math.sin(th) * dy) * k, cy = s.py + (Math.sin(th) * dx + Math.cos(th) * dy) * k, off = Math.hypot(cx, cy);
+    if (r - off < R - 0.05) return ["warn", off > 0.05 ? `圖案偏離中心 ${off.toFixed(2)} mm，有一側蓋不到外徑，會留白。` : `圖案外緣比外徑小 ${(R - r).toFixed(2)} mm，外圈會留白。`];
+    if (r - off > R + 0.05) return ["ok", `圖案比外徑大，最外面約 ${(r - off - R).toFixed(2)} mm 會被切掉。`];
+    return ["ok", "圖案外緣剛好對齊外徑。"];
+  }
+  const m = slotMat(pat, s, p), det = m[0] * m[3] - m[1] * m[2]; let miss = 0;
+  for (let n = 0; n < 72; n++) {               // 外徑圓周上的點有沒有落在圖片範圍內
+    const a = n * Math.PI / 36, x = (R - .03) * Math.cos(a) - m[4], y = (R - .03) * Math.sin(a) - m[5], u = (m[3] * x - m[2] * y) / det, v = (-m[1] * x + m[0] * y) / det;
+    if (u < 0 || v < 0 || u > pat.w || v > pat.h) miss++;
+  }
+  if (miss) return ["warn", `圖片沒有蓋滿外徑，外圈約有 ${Math.round(miss / 72 * 100)}% 會留白。按「填滿外徑」可以補滿。`];
+  return ["ok", "圖片蓋滿了外徑；超出外徑和落在內徑裡的部分會被切掉。"];
+}
+
+/* ---------------- 最小外接圓 ---------------- */
+function circle2(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, r: Math.hypot(a.x - b.x, a.y - b.y) / 2 }; }
+function circle3(a, b, c) {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-9) return null;
+  const a2 = a.x * a.x + a.y * a.y, b2 = b.x * b.x + b.y * b.y, c2 = c.x * c.x + c.y * c.y;
+  const x = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+  const y = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+  return { x, y, r: Math.hypot(a.x - x, a.y - y) };
+}
+const inside = (c, p) => Math.hypot(p.x - c.x, p.y - c.y) <= c.r + 1e-6;
+function minEnclosingCircle(pts) {
+  const p = pts.slice();
+  for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  let c = null;
+  for (let i = 0; i < p.length; i++) {
+    if (c && inside(c, p[i])) continue;
+    c = { x: p[i].x, y: p[i].y, r: 0 };
+    for (let j = 0; j < i; j++) {
+      if (inside(c, p[j])) continue;
+      c = circle2(p[i], p[j]);
+      for (let k = 0; k < j; k++) {
+        if (inside(c, p[k])) continue;
+        c = circle3(p[i], p[j], p[k]) || c;
+      }
+    }
+  }
+  return c;
+}
+
+/* ---------------- 圖案來源 ---------------- */
+async function renderPage(page, viewport, w, h) {
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  await page.render({ canvasContext: ctx, viewport, background: "#ffffff" }).promise;
+  return { cv, ctx };
+}
+
+/* 掃描遮罩：回傳每列最左、最右的有墨點，以及影像邊框上有墨的比例 */
+function scanMask(w, h, ink) {
+  const pts = []; let edge = 0;
+  for (let y = 0; y < h; y++) {
+    let lo = -1, hi = -1;
+    for (let x = 0, i = y * w; x < w; x++, i++) if (ink(i)) { if (lo < 0) lo = x; hi = x; }
+    if (lo >= 0) { pts.push({ x: lo + 0.5, y: y + 0.5 }); if (hi !== lo) pts.push({ x: hi + 0.5, y: y + 0.5 }); }
+    if (ink(y * w)) edge++; if (ink(y * w + w - 1)) edge++;
+  }
+  for (let x = 0; x < w; x++) { if (ink(x)) edge++; if (ink((h - 1) * w + x)) edge++; }
+  return { pts, edgeInk: edge / (2 * (w + h)) };
+}
+
+/* 解碼圖片。圖案的圓：去背圖取不透明範圍的外接圓；白底圖取有墨範圍的外接圓；其餘取內切圓 */
+async function decodeImage(file) {
+  let src = null;
+  if (window.createImageBitmap) {
+    try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+    catch (e) { try { src = await createImageBitmap(file); } catch (e2) { src = null; } }
+  }
+  if (!src) src = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = () => rej(new Error("讀取檔案失敗"));
+    fr.onload = () => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("瀏覽器無法解碼這個格式，請改用 JPG 或 PNG")); im.src = fr.result; };
+    fr.readAsDataURL(file);
+  });
+  const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
+  if (!w0 || !h0) throw new Error("圖片沒有內容");
+  const k = Math.min(1, Math.sqrt(16e6 / (w0 * h0)));
+  const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+
+  const ds = Math.min(1, 1200 / Math.max(w, h)), dw = Math.max(1, Math.round(w * ds)), dh = Math.max(1, Math.round(h * ds));
+  const small = document.createElement("canvas"); small.width = dw; small.height = dh;
+  const sctx = small.getContext("2d", { willReadFrequently: true });
+  sctx.imageSmoothingQuality = "high"; sctx.drawImage(src, 0, 0, dw, dh);
+  const d = sctx.getImageData(0, 0, dw, dh).data;
+  const a = i => d[i * 4 + 3], corners = [0, dw - 1, (dh - 1) * dw, dh * dw - 1];
+  const cutout = corners.every(i => a(i) < 16);
+  const { pts, edgeInk } = scanMask(dw, dh, cutout ? i => a(i) >= 128
+    : i => a(i) >= 128 && 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2] < 228);
+  let circle = { cx: w / 2, cy: h / 2, r: Math.min(w, h) / 2 };
+  if (pts.length >= 6 && (cutout || edgeInk < 0.02)) { const c = minEnclosingCircle(pts); circle = { cx: c.x / ds, cy: c.y / ds, r: (c.r + 0.5) / ds }; }
+
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingQuality = "high"; ctx.drawImage(src, 0, 0, w, h);          // 不墊白底：去背圖的透明要一路保留到輸出
+  if (src.close) src.close();
+  return { cv, w, h, circle, detected: pts.length >= 6 && (cutout || edgeInk < 0.02) };
+}
+
+/* 找出 PDF 頁面上各自分開的圖案（間隔約 1 mm 以上視為不同圖案），回傳每個圖案的外接圓 (pt) */
+async function detectPatterns(page) {
+  const base = page.getViewport({ scale: 1 });
+  const sc = Math.min(Math.max(1600 / Math.max(base.width, base.height), 1), 600 / 72);
+  const vp = page.getViewport({ scale: sc }), w = Math.ceil(vp.width), h = Math.ceil(vp.height);
+  const { ctx } = await renderPage(page, vp, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const cell = Math.max(2, Math.round(sc / MM_PER_PT)), gw = Math.ceil(w / cell), gh = Math.ceil(h / cell);
+  const ink = new Uint8Array(w * h), grid = new Uint8Array(gw * gh);
+  for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++)
+    if (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2] < 250) { ink[i] = 1; grid[Math.floor(y / cell) * gw + Math.floor(x / cell)] = 1; }
+  const lab = new Int32Array(gw * gh); let n = 0;
+  for (let s = 0; s < grid.length; s++) {
+    if (!grid[s] || lab[s]) continue;
+    lab[s] = ++n; const stack = [s];
+    while (stack.length) {
+      const q = stack.pop(), qx = q % gw, qy = (q - qx) / gw;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = qx + dx, ny = qy + dy; if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
+        const m = ny * gw + nx; if (grid[m] && !lab[m]) { lab[m] = n; stack.push(m); }
+      }
+    }
+  }
+  if (!n) return [];
+  const pts = Array.from({ length: n + 1 }, () => []), lo = new Int32Array(n + 1), hi = new Int32Array(n + 1);
+  for (let y = 0; y < h; y++) {
+    lo.fill(-1); const gy = Math.floor(y / cell) * gw;
+    for (let x = 0, i = y * w; x < w; x++, i++) if (ink[i]) { const L = lab[gy + Math.floor(x / cell)]; if (lo[L] < 0) lo[L] = x; hi[L] = x; }
+    for (let L = 1; L <= n; L++) if (lo[L] >= 0) { pts[L].push({ x: lo[L] + 0.5, y: y + 0.5 }); if (hi[L] !== lo[L]) pts[L].push({ x: hi[L] + 0.5, y: y + 0.5 }); }
+  }
+  let out = [];
+  for (let L = 1; L <= n; L++) {
+    if (pts[L].length < 6) continue;
+    const c = minEnclosingCircle(pts[L]), circle = { cx: c.x / sc, cy: c.y / sc, r: (c.r + 0.5) / sc };
+    if (circle.r * 2 * MM_PER_PT >= 2) out.push(circle);          // 小於 2 mm 的當作雜點
+  }
+  if (out.length > 60) {                                            // 拆得太碎，整頁當成一個圖案
+    const all = pts.flat(); const c = minEnclosingCircle(all); out = [{ cx: c.x / sc, cy: c.y / sc, r: (c.r + 0.5) / sc }];
+  }
+  const rowTol = out.length ? out.map(c => c.r).sort((a, b) => a - b)[out.length >> 1] : 0;
+  out.sort((a, b) => Math.abs(a.cy - b.cy) > rowTol ? a.cy - b.cy : a.cx - b.cx);   // 由上到下、由左到右
+  return out;
+}
+
+/* 依矩陣 M（來源座標 → 畫布像素）把圖案畫上去。PDF 有旋轉時先畫成不旋轉的點陣再轉，會比不旋轉時略軟 */
+async function drawPatternM(ctx, pat, M) {
+  const W = ctx.canvas.width, H = ctx.canvas.height, k = Math.hypot(M[0], M[1]), th = Math.atan2(M[1], M[0]);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (pat.kind === "img") {
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.setTransform(M[0], M[1], M[2], M[3], M[4], M[5]); ctx.drawImage(pat.cv, 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); return;
+  }
+  if (Math.abs(th) < 1e-6) { await pat.page.render({ canvasContext: ctx, viewport: pat.page.getViewport({ scale: k, offsetX: M[4], offsetY: M[5] }), background: "rgba(0,0,0,0)" }).promise; return; }
+  const side = Math.ceil(Math.hypot(W, H)) + 4, co = Math.cos(th), si = Math.sin(th), dx = M[4] - W / 2, dy = M[5] - H / 2;
+  const tmp = document.createElement("canvas"); tmp.width = tmp.height = side;
+  await pat.page.render({ canvasContext: tmp.getContext("2d"), viewport: pat.page.getViewport({ scale: k, offsetX: side / 2 + (co * dx + si * dy), offsetY: side / 2 + (-si * dx + co * dy) }), background: "rgba(0,0,0,0)" }).promise;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.translate(W / 2, H / 2); ctx.rotate(th); ctx.drawImage(tmp, -side / 2, -side / 2); ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+/* 一格的處理區（正方形，邊長 = 外徑 + 邊界）。at 有給時，把影像左上角對齊頁面的像素格 */
+async function renderSlotROI(pat, slot, p, dpi, at) {
+  const pxmm = dpi / 25.4, W = Math.ceil((p.outerD + 2 * ROI_MARGIN_MM) * pxmm);
+  const x0 = at ? Math.round(at.x * pxmm - W / 2) : 0, y0 = at ? Math.round(at.y * pxmm - W / 2) : 0;
+  const cx = at ? at.x * pxmm - x0 : W / 2, cy = at ? at.y * pxmm - y0 : W / 2, m = slotMat(pat, slot, p);
+  const cv = document.createElement("canvas"); cv.width = cv.height = W;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  await drawPatternM(ctx, pat, [m[0] * pxmm, m[1] * pxmm, m[2] * pxmm, m[3] * pxmm, cx + m[4] * pxmm, cy + m[5] * pxmm]);
+  return { W, H: W, cx, cy, x0, y0, rgba: ctx.getImageData(0, 0, W, W).data };
+}
+/* 畫面上即時顯示用的低解析度替身：拖曳時每一格畫面都畫它，放開後才重算正式結果 */
+async function makeProxy(pat) {
+  if (pat.kind === "img") {
+    const s = Math.min(1, 1600 / Math.max(pat.w, pat.h)); if (s === 1) return { cv: pat.cv, s: 1, ox: 0, oy: 0 };
+    const cv = document.createElement("canvas"); cv.width = Math.round(pat.w * s); cv.height = Math.round(pat.h * s);
+    const c = cv.getContext("2d"); c.imageSmoothingQuality = "high"; c.drawImage(pat.cv, 0, 0, cv.width, cv.height); return { cv, s: cv.width / pat.w, ox: 0, oy: 0 };
+  }
+  const half = pat.circle.r * 1.7, s = Math.min(1000 / (2 * half), 12), size = Math.ceil(2 * half * s), cv = document.createElement("canvas"); cv.width = cv.height = size;
+  await pat.page.render({ canvasContext: cv.getContext("2d"), viewport: pat.page.getViewport({ scale: s, offsetX: -(pat.circle.cx - half) * s, offsetY: -(pat.circle.cy - half) * s }), background: "#ffffff" }).promise;
+  return { cv, s, ox: pat.circle.cx - half, oy: pat.circle.cy - half };
+}
+function drawProxy(c, pat, m) {      // m：來源座標 → 目前畫布座標系（mm）
+  c.save(); c.transform(m[0], m[1], m[2], m[3], m[4], m[5]); c.translate(pat.proxy.ox, pat.proxy.oy); c.scale(1 / pat.proxy.s, 1 / pat.proxy.s);
+  c.imageSmoothingEnabled = true; c.drawImage(pat.proxy.cv, 0, 0); c.restore();
+}
+
+/* ---------------- 補償：空間可變高斯低通 ---------------- */
+function gaussBlur(src, tmp, dst, W, H, sigma) {
+  const rad = Math.max(1, Math.ceil(sigma * 3)), k = new Float32Array(2 * rad + 1);
+  let sum = 0;
+  for (let i = -rad; i <= rad; i++) { k[i + rad] = Math.exp(-i * i / (2 * sigma * sigma)); sum += k[i + rad]; }
+  for (let i = 0; i < k.length; i++) k[i] /= sum;
+  for (let y = 0; y < H; y++) {
+    const row = y * W * 3;
+    for (let x = 0; x < W; x++) {
+      let a = 0, b = 0, c = 0;
+      for (let j = -rad; j <= rad; j++) {
+        let xx = x + j; if (xx < 0) xx = 0; else if (xx >= W) xx = W - 1;
+        const o = row + xx * 3, w = k[j + rad];
+        a += src[o] * w; b += src[o + 1] * w; c += src[o + 2] * w;
+      }
+      const o = row + x * 3; tmp[o] = a; tmp[o + 1] = b; tmp[o + 2] = c;
+    }
+  }
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let a = 0, b = 0, c = 0;
+      for (let j = -rad; j <= rad; j++) {
+        let yy = y + j; if (yy < 0) yy = 0; else if (yy >= H) yy = H - 1;
+        const o = (yy * W + x) * 3, w = k[j + rad];
+        a += tmp[o] * w; b += tmp[o + 1] * w; c += tmp[o + 2] * w;
+      }
+      const o = (y * W + x) * 3; dst[o] = a; dst[o + 1] = b; dst[o + 2] = c;
+    }
+  }
+}
+
+/* 回傳 {rgb:Uint8Array(N*3), alpha:Uint8Array(N)}；stale() 為真時中止並回傳 null */
+async function compensate(roi, p, dpi, stale, onProgress) {
+  const { W, H, cx, cy, rgba } = roi, N = W * H;
+  const mmPerPx = 25.4 / dpi, rIn = p.innerD / 2, rOut = p.outerD / 2;
+  const sig = new Float32Array(N), valid = new Uint8Array(N);
+  let sMax = 0;
+  for (let y = 0, i = 0; y < H; y++) {
+    const dy = y + 0.5 - cy;
+    for (let x = 0; x < W; x++, i++) {
+      const r = Math.hypot(x + 0.5 - cx, dy) * mmPerPx;
+      const sg = sigmaOf(resScale(r, p));
+      sig[i] = sg; if (sg > sMax) sMax = sg;
+      valid[i] = (r <= rOut && r >= rIn) ? 255 : 0;
+    }
+  }
+  const src = new Float32Array(N * 3);
+  for (let i = 0, o = 0, q = 0; i < N; i++, o += 4, q += 3) { const a = rgba[o + 3] / 255; src[q] = rgba[o] * a + 255 * (1 - a); src[q + 1] = rgba[o + 1] * a + 255 * (1 - a); src[q + 2] = rgba[o + 2] * a + 255 * (1 - a); }   // 原圖透明的地方當成白色（不上墨）
+  let srcA = null;                                                          // 原圖有透明：透明度也一起做同樣的補償模糊
+  for (let i = 0; i < N; i++) if (valid[i] && rgba[i * 4 + 3] < 255) { srcA = new Float32Array(N * 3); break; }
+  if (srcA) for (let i = 0, q = 0; i < N; i++, q += 3) srcA[q] = srcA[q + 1] = srcA[q + 2] = rgba[i * 4 + 3];
+  const accA = srcA ? (sMax >= 0.05 ? new Float32Array(N * 3) : srcA) : null;
+  let acc = src;
+  if (sMax >= 0.05) {
+    const n = Math.min(Math.max(Math.ceil(sMax / 0.25) + 1, 2), 16);
+    acc = new Float32Array(N * 3);
+    const tmp = new Float32Array(N * 3), blur = new Float32Array(N * 3);
+    for (let lv = 0; lv < n; lv++) {
+      if (stale && stale()) return null;
+      const level = lv === 0 ? src : (gaussBlur(src, tmp, blur, W, H, sMax * lv / (n - 1)), blur);
+      for (let i = 0, q = 0; i < N; i++, q += 3) {
+        const w = 1 - Math.abs(sig[i] / sMax * (n - 1) - lv);
+        if (w > 0) { acc[q] += level[q] * w; acc[q + 1] += level[q + 1] * w; acc[q + 2] += level[q + 2] * w; }
+      }
+      if (srcA) {
+        const lvA = lv === 0 ? srcA : (gaussBlur(srcA, tmp, blur, W, H, sMax * lv / (n - 1)), blur);
+        for (let i = 0, q = 0; i < N; i++, q += 3) { const w = 1 - Math.abs(sig[i] / sMax * (n - 1) - lv); if (w > 0) accA[q] += lvA[q] * w; }
+      }
+      if (onProgress) onProgress((lv + 1) / n);
+      if (N > 150000) await tick();
+    }
+  }
+  const rgb = new Uint8Array(N * 3), ink = (p.ink === undefined ? 100 : p.ink) / 100;     // 油墨密度：往白色（不上墨）調淡
+  for (let i = 0, q = 0; i < N; i++, q += 3) {
+    if (valid[i]) { for (let c = 0; c < 3; c++) rgb[q + c] = 255 - (255 - acc[q + c]) * ink + 0.5; }
+    else { rgb[q] = rgb[q + 1] = rgb[q + 2] = 255; }
+  }
+  let srcAlpha = null;                                       // 原圖透明度（補償後），0～255
+  if (accA) { srcAlpha = new Uint8Array(N); for (let i = 0, q = 0; i < N; i++, q += 3) srcAlpha[i] = Math.max(0, Math.min(255, Math.round(accA[q]))); }
+  return { rgb, alpha: valid, srcAlpha };
+}
+/* 照原圖去背：原圖透明的地方輸出也透明。顏色先前是墊白色算的，這裡再把白色「拿掉」還原成原本的顏色 */
+function keepAlpha(out) {
+  const { rgb, alpha, srcAlpha } = out; if (!srcAlpha) return out;
+  const a2 = new Uint8Array(alpha.length);
+  for (let i = 0, q = 0; i < alpha.length; i++, q += 3) {
+    const a = alpha[i] ? srcAlpha[i] : 0; a2[i] = a;
+    if (a < 2) { rgb[q] = rgb[q + 1] = rgb[q + 2] = 255; continue; }
+    for (let c = 0; c < 3; c++) rgb[q + c] = Math.max(0, Math.min(255, Math.round(255 - (255 - rgb[q + c]) * 255 / a)));
+  }
+  return { rgb, alpha: a2 };
+}
+/* 去背：白色＝不上墨，所以把「離白色多遠」當成不透明度（白→全透明、淺色→半透明），顏色再還原回去。
+   疊在白底上看起來和原本一模一樣，但在 Illustrator 裡白色和方框四角不會再擋住底下的東西 */
+function knockWhite(out) {
+  const { rgb, alpha } = out, a2 = new Uint8Array(alpha.length);
+  for (let i = 0, q = 0; i < alpha.length; i++, q += 3) {
+    if (!alpha[i]) { rgb[q] = rgb[q + 1] = rgb[q + 2] = 255; continue; }
+    const a = Math.max(255 - rgb[q], 255 - rgb[q + 1], 255 - rgb[q + 2]);
+    if (a < 2) { rgb[q] = rgb[q + 1] = rgb[q + 2] = 255; continue; }
+    for (let c = 0; c < 3; c++) rgb[q + c] = Math.max(0, Math.min(255, Math.round(255 - (255 - rgb[q + c]) * 255 / a)));
+    a2[i] = Math.round(a * alpha[i] / 255);
+  }
+  return { rgb, alpha: a2 };
+}
+function toCanvas(W, H, out, useAlpha) {
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d"), img = ctx.createImageData(W, H), d = img.data;
+  for (let i = 0, o = 0, q = 0; i < W * H; i++, o += 4, q += 3) { d[o] = out.rgb[q]; d[o + 1] = out.rgb[q + 1]; d[o + 2] = out.rgb[q + 2]; d[o + 3] = useAlpha ? out.alpha[i] : 255; }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+
+/* ---------------- PDF 寫出 ---------------- */
+const bytes = s => { const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i) & 255; return u; };
+const num = v => (+v.toFixed(4)).toString();
+async function deflate(u8) {
+  if (typeof CompressionStream === "undefined") return null;
+  const s = new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+/* objs[i] 是第 i+1 號物件：{dict, stream?}；第 1 號必須是 Catalog */
+function assemblePdf(objs) {
+  const parts = [bytes("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n")], offs = [];
+  let off = parts[0].length;
+  objs.forEach((o, i) => {
+    offs.push(off);
+    if (o.stream) {
+      const h = bytes(`${i + 1} 0 obj\n${o.dict.replace(/>>\s*$/, `/Length ${o.stream.length} >>`)}\nstream\n`);
+      const t = bytes("\nendstream\nendobj\n");
+      parts.push(h, o.stream, t); off += h.length + o.stream.length + t.length;
+    } else {
+      const h = bytes(`${i + 1} 0 obj\n${o.dict}\nendobj\n`);
+      parts.push(h); off += h.length;
+    }
+  });
+  let x = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
+  for (const o of offs) x += String(o).padStart(10, "0") + " 00000 n \n";
+  x += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${off}\n%%EOF\n`;
+  parts.push(bytes(x));
+  return new Blob(parts, { type: "application/pdf" });
+}
+async function imageObj(data, W, H, cs, extra) {
+  const z = await deflate(data);
+  return {
+    dict: `<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /${cs} /BitsPerComponent 8 ${z ? "/Filter /FlateDecode " : ""}${extra || ""} >>`,
+    stream: z || data,
+  };
+}
+
+/* 整盤一頁：items = [{x, y, w, h (pt，左上角起算), W, H, rgb, alpha}] */
+async function buildTrayPdf(t, items, onProgress) {
+  const pw = t.pageW / MM_PER_PT, ph = t.pageH / MM_PER_PT;
+  const objs = [{ dict: "<< /Type /Catalog /Pages 2 0 R >>" }, { dict: "<< /Type /Pages /Kids [3 0 R] /Count 1 >>" }, null, null];
+  let content = "", res = "";
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i], n = objs.length + 1;
+    res += `/Im${i} ${n} 0 R `;
+    content += `q ${num(it.w)} 0 0 ${num(it.h)} ${num(it.x)} ${num(ph - it.y - it.h)} cm /Im${i} Do Q\n`;
+    objs.push(await imageObj(it.rgb, it.W, it.H, "DeviceRGB", t.transparent ? `/SMask ${n + 1} 0 R ` : ""));
+    if (t.transparent) objs.push(await imageObj(it.alpha, it.W, it.H, "DeviceGray"));
+    if (onProgress) onProgress(i + 1);
+  }
+  objs[2] = { dict: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(pw)} ${num(ph)}] /Resources << /XObject << ${res}>> >> /Contents 4 0 R >>` };
+  objs[3] = { dict: "<< >>", stream: bytes(content || " ") };
+  return assemblePdf(objs);
+}
+
+/* 一頁一片：每頁剛好是一片的處理區大小（外徑＋邊界），圖案圓心在頁面正中央 */
+async function buildLensPdf(t, items) {
+  const objs = [{ dict: "<< /Type /Catalog /Pages 2 0 R >>" }, null], kids = [];
+  const sm = t.transparent;
+  for (const it of items) {
+    const pg = objs.length + 1, ct = pg + 1, im = pg + 2;
+    kids.push(`${pg} 0 R`);
+    objs.push({ dict: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(it.w)} ${num(it.h)}] /Resources << /XObject << /Im0 ${im} 0 R >> >> /Contents ${ct} 0 R >>` });
+    objs.push({ dict: "<< >>", stream: bytes(`q ${num(it.w)} 0 0 ${num(it.h)} 0 0 cm /Im0 Do Q\n`) });
+    objs.push(await imageObj(it.rgb, it.W, it.H, "DeviceRGB", sm ? `/SMask ${im + 1} 0 R ` : ""));
+    if (sm) objs.push(await imageObj(it.alpha, it.W, it.H, "DeviceGray"));
+  }
+  objs[1] = { dict: `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${kids.length} >>` };
+  return assemblePdf(objs);
+}
+
+/* ---------------- 測試圖案 ---------------- */
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+/* 以圓心為原點、mm 為單位的繪圖小工具；角度為弧度 */
+function gfx(cx, cy, MM) {
+  let s = "";
+  const f = v => v.toFixed(3), K = 0.5523;
+  const X = (r, a) => cx + r * MM * Math.cos(a), Y = (r, a) => cy + r * MM * Math.sin(a);
+  const circ = (x, y, r) =>
+    `${f(x + r)} ${f(y)} m ${f(x + r)} ${f(y + K * r)} ${f(x + K * r)} ${f(y + r)} ${f(x)} ${f(y + r)} c ` +
+    `${f(x - K * r)} ${f(y + r)} ${f(x - r)} ${f(y + K * r)} ${f(x - r)} ${f(y)} c ` +
+    `${f(x - r)} ${f(y - K * r)} ${f(x - K * r)} ${f(y - r)} ${f(x)} ${f(y - r)} c ` +
+    `${f(x + K * r)} ${f(y - r)} ${f(x + r)} ${f(y - K * r)} ${f(x + r)} ${f(y)} c\n`;
+  return {
+    op(o) { s += o + "\n"; },
+    fill(c) { s += c.join(" ") + " k\n"; },
+    stroke(c, w) { s += `${c.join(" ")} K ${f(w * MM)} w\n`; },
+    dot(r, a, rad) { s += circ(X(r, a), Y(r, a), rad * MM); },             // 只加路徑，之後自行 f / S
+    dotXY(x, y, rad) { s += circ(cx + x * MM, cy + y * MM, rad * MM); },
+    path(pts, close) {                                                     // pts: [[r, a], ...]
+      pts.forEach(([r, a], i) => { s += `${f(X(r, a))} ${f(Y(r, a))} ${i ? "l" : "m"} `; });
+      s += close ? "h\n" : "\n";
+    },
+    text() { return s; },
+  };
+}
+
+const RO = 6.75, RI = 2.5, TAU = Math.PI * 2;
+const SAMPLES = {
+  /* 放射線 + 同心圓點：基本檢查用 */
+  target: { center: [14, 11], draw(g) {
+    g.stroke([0, 0, 0, 1], 0.03);
+    for (let i = 0; i < 180; i++) { const a = i * TAU / 180; g.path([[RI, a], [RO, a]]); g.op("S"); }
+    for (let ring = 1; ring < 12; ring++) {
+      const rr = RI + (RO - RI) * ring / 12, n = Math.floor(TAU * rr / 0.25);
+      g.fill(ring % 2 ? [0.2, 0.9, 0, 0.1] : [1, 0.3, 0, 0]);
+      for (let j = 0; j < n; j++) g.dot(rr, TAU * j / n, 0.04);
+      g.op("f");
+    }
+    g.stroke([0, 0, 0, 1], 0.1); g.dot(0, 0, RO - 0.05); g.op("S");
+  } },
+
+  /* 虹膜紋理：放射纖維、瞳孔緣亮紋、深色外環 */
+  iris: { center: [12.5, 12.5], draw(g) {
+    const R = rng(7), cols = [[0.25, 0.5, 0.9, 0.1], [0.4, 0.6, 0.8, 0.35], [0.1, 0.3, 0.75, 0], [0.5, 0.65, 0.7, 0.5]];
+    g.op("1 J 1 j");
+    for (let i = 0; i < 560; i++) {
+      const a = R() * TAU, r1 = RI + R() * 0.8, r2 = 4.2 + R() * 2.2, wob = (R() - 0.5) * 0.14, ph = R() * TAU, pts = [];
+      for (let k = 0; k <= 6; k++) { const t = k / 6; pts.push([r1 + (r2 - r1) * t, a + wob * Math.sin(ph + t * 5) * t]); }
+      g.stroke(cols[Math.floor(R() * cols.length)], 0.025 + R() * 0.05); g.path(pts); g.op("S");
+    }
+    g.stroke([0, 0.25, 0.85, 0], 0.05);
+    for (let i = 0; i < 170; i++) { const a = R() * TAU; g.path([[RI, a], [3.1 + R() * 0.8, a + (R() - 0.5) * 0.05]]); g.op("S"); }
+    const limbal = [0.6, 0.6, 0.6, 0.85];
+    g.stroke(limbal, 0.05);
+    for (let i = 0; i < 420; i++) { const a = R() * TAU; g.path([[6.45, a], [5.5 + R() * 0.75, a + (R() - 0.5) * 0.04]]); g.op("S"); }
+    g.stroke(limbal, 0.4); g.dot(0, 0, RO - 0.2); g.op("S");
+  } },
+
+  /* 網點漸層：六角排列，點徑由內往外變大，兩色螺旋分帶 */
+  dots: { center: [11.5, 13], draw(g) {
+    const pitch = 0.2, rows = Math.ceil(RO / (pitch * 0.866));
+    for (const pass of [0, 1]) {
+      g.fill(pass ? [0.15, 0.75, 0, 0] : [0.8, 0.35, 0, 0.15]);
+      for (let j = -rows; j <= rows; j++) {
+        const y = j * pitch * 0.866, off = (j & 1) * pitch / 2;
+        for (let i = -rows; i <= rows; i++) {
+          const x = i * pitch + off, r = Math.hypot(x, y);
+          if (r < RI + 0.08 || r > 6.4) continue;
+          const band = Math.sin(5 * Math.atan2(y, x) + r * 2.4) > 0.45 ? 1 : 0;
+          if (band !== pass) continue;
+          g.dotXY(x, y, 0.025 + 0.06 * (r - RI) / (RO - RI));
+        }
+      }
+      g.op("f");
+    }
+    g.fill([0.9, 0.6, 0, 0.5]);
+    const n = Math.round(TAU * 6.65 / 0.24);
+    for (let k = 0; k < n; k++) g.dot(6.65, TAU * k / n, 0.1);
+    g.op("f");
+  } },
+
+  /* 花瓣：兩層花瓣、葉脈細線、外圈扇貝邊 */
+  flower: { center: [13, 12], draw(g) {
+    const N = 10;
+    const petal = (a0, r0, r1, W) => {
+      const L = [], Rr = [];
+      for (let k = 0; k <= 24; k++) { const t = k / 24, r = r0 + (r1 - r0) * t, w = W * Math.pow(Math.sin(Math.PI * t), 0.8); L.push([r, a0 - w]); Rr.unshift([r, a0 + w]); }
+      return L.concat(Rr);
+    };
+    g.op("1 J 1 j");
+    g.fill([0, 0.55, 0.25, 0]); g.stroke([0.2, 0.9, 0.4, 0.2], 0.05);
+    for (let k = 0; k < N; k++) { g.path(petal(k * TAU / N, 2.6, 6.4, 0.27), true); g.op("B"); }
+    g.stroke([0.3, 1, 0.5, 0.3], 0.025);
+    for (let k = 0; k < N; k++) for (let v = -2; v <= 2; v++) {
+      const a0 = k * TAU / N; g.path([[2.9, a0 + v * 0.02], [4.4, a0 + v * 0.06], [5.6 - Math.abs(v) * 0.25, a0 + v * 0.075]]); g.op("S");
+    }
+    g.fill([0.5, 0.65, 0, 0]); g.stroke([0.7, 0.9, 0, 0.3], 0.04);
+    for (let k = 0; k < N; k++) { g.path(petal((k + 0.5) * TAU / N, 2.6, 5.0, 0.2), true); g.op("B"); }
+    g.stroke([0.2, 0.9, 0.4, 0.4], 0.04);
+    for (let k = 0; k < 64; k++) { g.dot(6.58, TAU * k / 64, 0.15); g.op("S"); }
+    g.fill([0, 0.3, 0.9, 0]);
+    for (let k = 0; k < 44; k++) g.dot(2.68, TAU * k / 44, 0.06);
+    g.op("f");
+  } },
+
+  /* 解析度標靶：左半扇形星標，右半等間距同心線（線寬 0.05 mm） */
+  star: { center: [12.5, 12.5], draw(g) {
+    g.fill([0, 0, 0, 1]);
+    const step = Math.PI / 120;
+    for (let k = 0; k < 60; k++) {
+      const a0 = Math.PI / 2 + 2 * k * step, a1 = a0 + step;
+      g.path([[RI, a0], [RO, a0], [RO, (a0 + a1) / 2], [RO, a1], [RI, a1]], true);
+    }
+    g.op("f");
+    g.stroke([0, 0, 0, 1], 0.05);
+    for (let r = RI; r <= RO - 0.05; r += 0.1) {
+      const pts = [];
+      for (let k = 0; k <= 72; k++) pts.push([r, -Math.PI / 2 + Math.PI * k / 72]);
+      g.path(pts); g.op("S");
+    }
+    g.dot(0, 0, RO - 0.025); g.op("S");
+  } },
+};
+
+function buildSamplePdf(kind) {
+  const MM = 72 / 25.4, page = 25 * MM, def = SAMPLES[kind];
+  const g = gfx(def.center[0] * MM, (25 - def.center[1]) * MM, MM);
+  def.draw(g);
+  return assemblePdf([
+    { dict: "<< /Type /Catalog /Pages 2 0 R >>" },
+    { dict: "<< /Type /Pages /Kids [3 0 R] /Count 1 >>" },
+    { dict: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.toFixed(3)} ${page.toFixed(3)}] /Resources << >> /Contents 4 0 R >>` },
+    { dict: "<< >>", stream: bytes(g.text()) },
+  ]);
+}
+
+/* ---------------- 訊息 ---------------- */
+function setMsgs(list) {
+  const box = $("msgs"); box.textContent = "";
+  for (const [kind, text] of list) { const e = document.createElement("span"); e.className = "m " + kind; e.textContent = text; box.appendChild(e); }
+}
+const fmtA = a => (Math.round(a * 100) / 100).toString();
+
+/* ---------------- 畫布：整盤檢視與單片檢視 ---------------- */
+const stageSize = () => { const b = $("stagebox"); return { w: b.clientWidth, h: b.clientHeight }; };
+const curView = () => view[view.mode];
+function fitView(mode) {
+  const { w, h } = stageSize(), t = readTray();
+  if (mode === "tray") { const z = Math.min((w - 60) / t.pageW, (h - 60) / t.pageH); view.tray = { z, x: (w - t.pageW * z) / 2, y: (h - t.pageH * z) / 2 }; }
+  else { const D = (st.slots[st.sel] ? slotP(st.sel).outerD : 13.5) * 1.9, z = Math.min(w, h) / D; view.lens = { z, x: w / 2, y: h / 2 }; }
+}
+/* 選取格的圖案框與把手（螢幕座標） */
+function handleGeo() {
+  const s = st.slots[st.sel], pat = s && getPat(s.pat); if (!pat) return null;
+  const p = slotP(st.sel), m = slotMat(pat, s, p), b = pat.box, v = curView(), t = readTray();
+  const o = view.mode === "tray" ? slotCenter(st.sel, t) : { x: 0, y: 0 };
+  const S = q => ({ x: v.x + (o.x + q.x) * v.z, y: v.y + (o.y + q.y) * v.z });
+  const cs = [[b.cx - b.w / 2, b.cy - b.h / 2], [b.cx + b.w / 2, b.cy - b.h / 2], [b.cx + b.w / 2, b.cy + b.h / 2], [b.cx - b.w / 2, b.cy + b.h / 2]].map(([x, y]) => S(apply(m, x, y)));
+  const c = S({ x: s.px, y: s.py }), top = { x: (cs[0].x + cs[1].x) / 2, y: (cs[0].y + cs[1].y) / 2 }, d = Math.hypot(top.x - c.x, top.y - c.y) || 1;
+  return { cs, c, rot: { x: top.x + (top.x - c.x) / d * 26, y: top.y + (top.y - c.y) / d * 26 }, top, origin: o };
+}
+function drawHandles(c) {
+  const g = handleGeo(); if (!g) return;
+  const acc = cssVar("--accent") || "#0E7C86";
+  c.save(); c.setTransform(devicePixelRatio || 1, 0, 0, devicePixelRatio || 1, 0, 0);
+  c.strokeStyle = acc; c.lineWidth = 1.5; c.setLineDash([5, 4]);
+  c.beginPath(); g.cs.forEach((q, n) => n ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y)); c.closePath(); c.stroke(); c.setLineDash([]);
+  c.beginPath(); c.moveTo(g.top.x, g.top.y); c.lineTo(g.rot.x, g.rot.y); c.stroke();
+  c.fillStyle = "#fff"; c.lineWidth = 2;
+  for (const q of g.cs) { c.beginPath(); c.rect(q.x - 5, q.y - 5, 10, 10); c.fill(); c.stroke(); }
+  c.beginPath(); c.arc(g.rot.x, g.rot.y, 6, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.restore();
+}
+function drawSlotLive(c, i, cx, cy) {      // 用替身即時畫出一格（只顯示外徑到內徑之間）
+  const s = st.slots[i], pat = getPat(s.pat), p = slotP(i), m = slotMat(pat, s, p);
+  c.save(); c.translate(cx, cy); c.beginPath(); c.arc(0, 0, p.outerD / 2, 0, Math.PI * 2); c.arc(0, 0, p.innerD / 2, 0, Math.PI * 2, true); c.clip("evenodd");
+  c.fillStyle = "#fff"; c.fillRect(-p.outerD, -p.outerD, 2 * p.outerD, 2 * p.outerD); drawProxy(c, pat, m); c.restore();
+}
+function drawTrayInto(c, t, z, live) {     // 目前座標系單位是 mm；z 用來換算固定像素大小的線寬與字
+  c.fillStyle = "#fff"; c.fillRect(0, 0, t.pageW, t.pageH);
+  c.strokeStyle = "rgba(0,0,0,.25)"; c.lineWidth = 1 / z; c.strokeRect(0, 0, t.pageW, t.pageH);
+  const fs = Math.max(Math.min(t.pitchX, t.pitchY) * .11, 10 / z), acc = cssVar("--accent") || "#0E7C86";
+  st.slots.forEach((s, i) => {
+    const ct = slotCenter(i, t), p = slotP(i), ro = Math.max(p.outerD, .1) / 2, half = ro + ROI_MARGIN_MM;
+    if (s.pat && !s.bad && (live === i || !s.thumb) && getPat(s.pat) && getPat(s.pat).proxy) drawSlotLive(c, i, ct.x, ct.y);
+    else if (s.thumb) c.drawImage(s.thumb, ct.x - half, ct.y - half, half * 2, half * 2);
+    else { c.setLineDash([1.2, 1.2]); c.strokeStyle = s.bad ? "#A4262C" : "#b8c4c2"; c.lineWidth = 1.5 / z; c.beginPath(); c.arc(ct.x, ct.y, ro, 0, Math.PI * 2); c.stroke(); c.setLineDash([]); }
+    if (i === st.sel) { c.strokeStyle = acc; c.lineWidth = 2.5 / z; c.beginPath(); c.arc(ct.x, ct.y, ro + 3 / z, 0, Math.PI * 2); c.stroke(); }
+    c.fillStyle = i === st.sel ? acc : "#5A6B70"; c.textBaseline = "alphabetic";
+    c.font = `700 ${fs}px sans-serif`; c.textAlign = "left"; c.fillText(String(i + 1), ct.x - ro, ct.y - ro - fs * .25);
+    if (s.pat) { c.font = `${fs * .8}px sans-serif`; c.textAlign = "right"; c.fillText("α " + fmtA(p.alpha), ct.x + ro, ct.y - ro - fs * .25); }
+  });
+}
+let liveSlot = -1;
+function drawStage() {
+  const cv = $("stage"), { w, h } = stageSize(), dpr = devicePixelRatio || 1, t = readTray();
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = cssVar("--stage") || "#C9D0CF"; c.fillRect(0, 0, w, h);
+  if (trayErrors(t).length || !st.slots.length) return;
+  if (!view.tray) fitView("tray"); if (!view.lens) fitView("lens");
+  const v = curView(); c.translate(v.x, v.y); c.scale(v.z, v.z);
+  if (view.mode === "tray") { drawTrayInto(c, t, v.z, liveSlot); drawHandles(c); $("hud").textContent = `整盤　${Math.round(v.z / (96 / 25.4) * 100)}%　雙擊格子進入單片編輯`; }
+  else drawLensView(c, v);
+  drawNav(t);
+}
+function drawLensView(c, v) {
+  const i = st.sel, s = st.slots[i], pat = s && getPat(s.pat), p = slotP(i), R = p.outerD / 2, acc = cssVar("--accent") || "#0E7C86";
+  const side = p.outerD + 2 * ROI_MARGIN_MM;
+  c.fillStyle = "#fff"; c.fillRect(-R * 1.6, -R * 1.6, R * 3.2, R * 3.2);
+  if (pat && !s.bad) {
+    const f = st.full;
+    if (view.show !== "edit" && f && f.i === i) {
+      c.imageSmoothingEnabled = v.z * f.side / f.orig.width < 2;       // 放大到看得見像素時不要平滑
+      c.drawImage(view.show === "before" ? f.orig : f.comp, -f.side / 2, -f.side / 2, f.side, f.side); c.imageSmoothingEnabled = true;
+    } else if (pat.proxy) {
+      const m = slotMat(pat, s, p);
+      c.save(); c.globalAlpha = .3; drawProxy(c, pat, m); c.restore();          // 會被切掉的部分淡淡地顯示
+      c.save(); c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.arc(0, 0, p.innerD / 2, 0, Math.PI * 2, true); c.clip("evenodd"); c.fillStyle = "#fff"; c.fillRect(-R, -R, 2 * R, 2 * R); drawProxy(c, pat, m); c.restore();
+    }
+  }
+  c.strokeStyle = acc; c.lineWidth = 1.5 / v.z; c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.stroke();
+  c.setLineDash([4 / v.z, 3 / v.z]); c.beginPath(); c.arc(0, 0, p.innerD / 2, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+  c.beginPath(); c.moveTo(-6 / v.z, 0); c.lineTo(6 / v.z, 0); c.moveTo(0, -6 / v.z); c.lineTo(0, 6 / v.z); c.stroke();
+  if (view.show === "edit") drawHandles(c);
+  const px = v.z * 25.4 / readTray().dpi;
+  $("hud").textContent = `單片　第 ${i + 1} 格　${view.show === "edit" ? "編輯：亮的一圈會印出來" : view.show === "before" ? "補償前" : "補償後"}　1 輸出像素 = ${px.toFixed(2)} 螢幕像素`;
+}
+function drawNav(t) {
+  const cv = $("nav"), W = 520, z = W / t.pageW, H = Math.max(30, Math.round(t.pageH * z));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext("2d"); c.setTransform(z, 0, 0, z, 0, 0); drawTrayInto(c, t, z, liveSlot);
+}
+
+/* ---------------- 右側：選取格的面板 ---------------- */
+function updateReadouts(p, dpi) {
+  const sO = resScale(p.outerD / 2, p), sI = resScale(p.innerD / 2, p), sg = sigmaOf(Math.min(sO, sI));
+  const small = x => { const e = document.createElement("small"); e.textContent = x; return e; };
+  $("rOut").replaceChildren(`${Math.round(dpi * sO)} DPI`, small(`${(sO * 100).toFixed(0)}%`));
+  $("rIn").replaceChildren(`${Math.round(dpi * sI)} DPI`, small(`${(sI * 100).toFixed(0)}%`));
+  $("rSig").replaceChildren(`${sg.toFixed(2)} px`, small(`${(sg * 25400 / dpi).toFixed(1)} µm`));
+  $("rAng").textContent = `${(Math.asin(Math.min(p.outerD / 2 / p.R, 1)) * 180 / Math.PI).toFixed(1)}°`;
+}
+function updatePanel() {
+  const s = st.slots[st.sel]; if (!s) return;
+  const d = readDefaults(), sel = $("sPat");
+  $("slotTitle").textContent = `第 ${st.sel + 1} 格（第 ${colOf(st.sel) + 1} 排、由上往下第 ${rowOf(st.sel) + 1} 個）`;
+  const want = ["", ...st.lib.map(p => String(p.id))];
+  if (want.join(",") !== Array.from(sel.options).map(o => o.value).join(",")) { sel.textContent = ""; sel.add(new Option("（空格）", "")); for (const p of st.lib) sel.add(new Option(p.name, String(p.id))); }
+  sel.value = s.pat ? String(s.pat) : ""; $("slotBody").hidden = !s.pat;
+  const set = (id, v) => { const e = $(id); if (document.activeElement !== e) e.value = v; };
+  set("sX", +s.px.toFixed(2)); set("sY", +s.py.toFixed(2)); set("sScale", +(s.s * 100).toFixed(1)); set("sRot", +s.rot.toFixed(1));
+  for (const [id, k] of [["sAlpha", "alpha"], ["sR", "R"], ["sInner", "innerD"], ["sOuter", "outerD"], ["sInk", "ink"]]) { $(id).placeholder = String(d[k]); set(id, s.ov[k] === undefined ? "" : s.ov[k]); }
+  const rep = s.pat ? fitReport(st.sel) : null, n = $("fitNote"); n.hidden = !rep; if (rep) { n.className = "note " + rep[0]; n.textContent = rep[1]; }
+  if (s.pat && !paramErrors(slotP(st.sel), readTray().dpi).length) updateReadouts(slotP(st.sel), readTray().dpi);
+}
+function renderLib() {
+  const box = $("lib"); box.textContent = "";
+  for (const pat of st.lib) {
+    const row = document.createElement("div"); row.className = "item";
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = pat.name;
+    const acts = document.createElement("div"); acts.className = "acts";
+    const mk = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.addEventListener("click", fn); acts.appendChild(b); };
+    mk("放進選取格", () => { setSlotPattern(st.sel, pat.id); changed(); });
+    mk("填滿空格", () => { st.slots.forEach((s, i) => { if (!s.pat) setSlotPattern(i, pat.id); }); changed(); });
+    mk("填滿全部", () => { st.slots.forEach((s, i) => setSlotPattern(i, pat.id)); changed(); });
+    const used = st.slots.filter(s => s.pat === pat.id).length;
+    const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "刪除";
+    del.title = used ? `用在 ${used} 格，刪除後這些格會變成空格` : "從圖案庫刪除";
+    let armT = 0;
+    del.addEventListener("click", () => {
+      if (!del.classList.contains("armed")) {         // 第一下：變成確認鈕，3 秒內再按一次才刪
+        del.classList.add("armed"); del.textContent = used ? `確定刪除？${used} 格會清空` : "確定刪除？";
+        armT = setTimeout(() => { del.classList.remove("armed"); del.textContent = "刪除"; }, 3000); return;
+      }
+      clearTimeout(armT); deletePatterns([pat.id]);
+    });
+    acts.appendChild(del);
+    if (used) { const u = document.createElement("span"); u.className = "used"; u.textContent = `用在 ${used} 格`; acts.appendChild(u); }
+    row.append(pat.thumb, nm, acts); box.appendChild(row);
+  }
+  $("libBulk").hidden = !st.lib.some(p => !st.slots.some(s => s.pat === p.id));
+}
+/* 從圖案庫刪除；用到它的格子變成空格。可以用「復原」找回來 */
+function deletePatterns(ids) {
+  const gone = new Set(ids); if (!gone.size) return;
+  st.slots.forEach((s, i) => { if (gone.has(s.pat)) setSlotPattern(i, null); });
+  st.lib = st.lib.filter(p => !gone.has(p.id)); st.full = null;
+  renderLib(); changed();
+  st.flash = [["ok", `已刪除 ${gone.size} 個圖案。按「復原」（Ctrl+Z）可以找回來。`]];   // 下一次重算時一起顯示
+}
+
+/* ---------------- 復原／重做、設定保存 ---------------- */
+const TRAY_IDS = ["cols", "rows", "pitchX", "pitchY", "orgX", "orgY", "pageW", "pageH", "dpi", "innerD", "outerD", "R", "alphaNum", "ink"];
+function snapshot() {
+  const tray = {}; for (const id of TRAY_IDS) tray[id] = $(id).value; tray.bgMode = $("bgMode").value;
+  return JSON.stringify({ tray, dims: st.dims, sel: st.sel, libIds: st.lib.map(p => p.id), slots: st.slots.map(s => ({ pat: s.pat, ov: s.ov, px: s.px, py: s.py, s: s.s, rot: s.rot })) });
+}
+function restore(json) {
+  const o = typeof json === "string" ? JSON.parse(json) : json;
+  for (const id of TRAY_IDS) if (o.tray[id] !== undefined) $(id).value = o.tray[id];
+  $("bgMode").value = o.tray.bgMode || "orig";   // 舊專案沒有這個欄位：預設照原圖去背 $("alpha").value = $("alphaNum").value;
+  if (Array.isArray(o.libIds)) st.lib = o.libIds.map(id => st.pool.get(id)).filter(Boolean);   // 舊的專案檔沒有這一項，就維持載入的圖案
+  st.dims = { cols: o.dims.cols, rows: o.dims.rows };
+  st.slots = o.slots.map(q => ({ ...newSlot(), pat: getPat(q.pat) ? q.pat : null, ov: { ...q.ov }, px: q.px || 0, py: q.py || 0, s: q.s || 1, rot: q.rot || 0 }));
+  st.sel = Math.min(o.sel || 0, st.slots.length - 1); st.full = null;
+}
+const hist = { stack: [], i: -1, lock: false };
+function pushHistory() {
+  if (hist.lock) return; const j = snapshot(); if (hist.stack[hist.i] === j) return;
+  hist.stack = hist.stack.slice(0, hist.i + 1); hist.stack.push(j); if (hist.stack.length > 120) hist.stack.shift(); hist.i = hist.stack.length - 1; histButtons();
+}
+function histButtons() { $("undo").disabled = hist.i <= 0; $("redo").disabled = hist.i >= hist.stack.length - 1; }
+function stepHistory(d) {
+  const n = hist.i + d; if (n < 0 || n >= hist.stack.length) return;
+  hist.i = n; hist.lock = true; restore(hist.stack[n]); renderLib(); histButtons(); view.tray = null; refreshAll().then(() => { hist.lock = false; });
+}
+function saveSettings() { try { const o = {}; for (const id of TRAY_IDS) o[id] = $(id).value; o.bgMode = $("bgMode").value; localStorage.setItem("lensTray.v2", JSON.stringify(o)); } catch (e) { /* 存不了就算了 */ } }
+function loadSettings() {
+  try { const o = JSON.parse(localStorage.getItem("lensTray.v2") || "null"); if (!o) return;
+    for (const id of TRAY_IDS) if (o[id] !== undefined && o[id] !== "") $(id).value = o[id]; $("bgMode").value = o.bgMode || "orig"; $("alpha").value = $("alphaNum").value;
+  } catch (e) { /* 沒有或壞掉就用預設值 */ }
+}
+
+/* ---------------- 主流程 ---------------- */
+let timer = 0;
+function schedule() { clearTimeout(timer); timer = setTimeout(refreshAll, 180); }
+function changed() { updatePanel(); drawStage(); schedule(); clearTimeout(libT); libT = setTimeout(renderLib, 120); }
+let libT = 0;       // 使用者改了東西：先即時重畫，稍後重算正式結果
+
+async function refreshAll() {
+  const run = ++st.run, stale = () => run !== st.run, t = readTray(), terr = trayErrors(t);
+  if (terr.length) { setMsgs(terr.map(e => ["err", e])); setExp(true); drawStage(); return; }
+  const dimsChanged = t.cols !== st.dims.cols || t.rows !== st.dims.rows;
+  syncSlots(t); if (dimsChanged || !view.tray) fitView("tray"); if (!view.lens) fitView("lens");
+  saveSettings(); pushHistory(); updatePanel();
+
+  const msgs = []; let filled = 0, off = 0, maxD = 0;
+  st.slots.forEach((s, i) => {
+    const p = slotP(i); s.bad = false; if (!s.pat) return;
+    if (!getPat(s.pat)) { s.pat = null; s.thumb = null; return; }
+    filled++;
+    const e = paramErrors(p, t.dpi);
+    if (e.length) { s.bad = true; s.thumb = null; s.key = ""; msgs.push(["err", `第 ${i + 1} 格：${e[0]}`]); return; }
+    const c = slotCenter(i, t), r = p.outerD / 2; maxD = Math.max(maxD, p.outerD);
+    if (c.x - r < 0 || c.y - r < 0 || c.x + r > t.pageW || c.y + r > t.pageH) off++;
+  });
+  if (st.flash) { msgs.unshift(...st.flash); st.flash = null; }
+  if (off) msgs.push(["warn", `有 ${off} 格超出頁面，輸出時會被頁面裁掉。`]);
+  if (maxD > Math.min(t.pitchX, t.pitchY)) msgs.push(["warn", `外徑 ${maxD.toFixed(2)} mm 大於格距，相鄰圖案會重疊。`]);
+  setMsgs(msgs);
+  $("facts").textContent = `頁面 ${t.pageW} × ${t.pageH} mm，${t.cols} × ${t.rows} 共 ${st.slots.length} 格，已放 ${filled} 格`;
+  setExp(!filled || st.slots.some(s => s.bad) || st.busy);
+  drawStage();
+  try {
+    for (let i = 0; i < st.slots.length; i++) {            // 總覽用的縮圖（已補償、已遮罩）
+      const s = st.slots[i]; if (!s.pat || s.bad) continue;
+      const p = slotP(i), key = slotKey(s, p); if (key === s.key && s.thumb) continue;
+      const roi = await renderSlotROI(getPat(s.pat), s, p, PREVIEW_DPI); if (stale()) return;
+      const out = await compensate(roi, p, PREVIEW_DPI, stale); if (!out || stale()) return;
+      s.thumb = toCanvas(roi.W, roi.H, out, true); s.key = key; drawStage(); await tick(); if (stale()) return;
+    }
+    await refreshFull(run);
+  } catch (e) { if (!stale()) setMsgs([...msgs, ["err", "處理失敗：" + (e && e.message ? e.message : e)]]); }
+}
+/* 單片檢視看「補償前／補償後」時，才計算選取格的全解析度結果 */
+async function refreshFull(run) {
+  const stale = () => run !== st.run, s = st.slots[st.sel], t = readTray();
+  if (view.mode !== "lens" || view.show === "edit" || !s || !s.pat || s.bad) return;
+  const p = slotP(st.sel), key = st.sel + "|" + slotKey(s, p) + "|" + t.dpi; if (st.full && st.full.key === key) { drawStage(); return; }
+  $("saveNote").textContent = "計算這一格的全解析度結果…";
+  const roi = await renderSlotROI(getPat(s.pat), s, p, t.dpi); if (stale()) return;
+  const out = await compensate(roi, p, t.dpi, stale); if (!out || stale()) return;
+  const orig = document.createElement("canvas"); orig.width = orig.height = roi.W; const oc = orig.getContext("2d"), id = oc.createImageData(roi.W, roi.W); id.data.set(roi.rgba); oc.putImageData(id, 0, 0);
+  st.full = { key, i: st.sel, orig, comp: toCanvas(roi.W, roi.H, out, false), side: roi.W * 25.4 / t.dpi };
+  $("saveNote").textContent = ""; drawStage();
+}
+
+/* ---------------- 圖案庫：匯入、測試圖案 ---------------- */
+function toB64(buf) { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+function fromB64(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+async function addPattern(pat, place) {
+  if (!pat.id) pat.id = st.nextId++; else st.nextId = Math.max(st.nextId, pat.id + 1);
+  pat.box = pat.kind === "pdf" ? { cx: pat.circle.cx, cy: pat.circle.cy, w: 2 * pat.circle.r, h: 2 * pat.circle.r } : { cx: pat.w / 2, cy: pat.h / 2, w: pat.w, h: pat.h };
+  if (pat.kind === "pdf") pat.detected = true;
+  pat.proxy = await makeProxy(pat);
+  const th = document.createElement("canvas"); th.width = th.height = 96; const c = th.getContext("2d"), k = 96 / (2 * pat.circle.r * 1.04);
+  c.fillStyle = "#fff"; c.fillRect(0, 0, 96, 96); drawProxy(c, pat, [k, 0, 0, k, 48 - pat.circle.cx * k, 48 - pat.circle.cy * k]); pat.thumb = th;
+  st.pool.set(pat.id, pat); st.lib.push(pat);
+  if (place) { const e = st.slots.findIndex((s, i) => !s.pat && i >= st.sel), idx = e >= 0 ? e : st.slots.findIndex(s => !s.pat); if (idx >= 0) setSlotPattern(idx, pat.id); }
+}
+/* 一個 PDF 檔 → 每頁每個圖案各一筆。circles 有給（開啟專案時）就不重新偵測 */
+async function addPdfBytes(u8, name, src, saved, place) {
+  const pdf = await pdfjsLib.getDocument({ data: u8.slice(), isEvalSupported: false }).promise; let count = 0;
+  for (let n = 1; n <= Math.min(pdf.numPages, 20); n++) {
+    const page = await pdf.getPage(n), base = page.getViewport({ scale: 1 });
+    const circles = saved ? saved.filter(q => q.page === n) : (await detectPatterns(page)).map((c, k) => ({ page: n, idx: k, circle: c }));
+    for (const q of circles) {
+      const many = saved ? null : circles.length > 1;
+      const nm = q.name || (name + (pdf.numPages > 1 ? ` 第${n}頁` : "") + (many ? ` #${q.idx + 1}` : ""));
+      await addPattern({ id: q.id, name: nm, kind: "pdf", page, w: base.width, h: base.height, circle: q.circle, src: { ...src, page: n, idx: q.idx } }, place); count++;
+    }
+  }
+  if (!count) throw new Error("頁面上找不到圖案"); return count;
+}
+async function addFiles(files) {
+  const t = readTray(); if (!trayErrors(t).length) syncSlots(t);
+  const notes = [];
+  for (const f of files) {
+    try {
+      const buf = await f.arrayBuffer(), key = "f" + st.nextFile++, isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+      if (isPdf) { const n = await addPdfBytes(new Uint8Array(buf), f.name, { type: "file", key }, null, true); if (n > 1) notes.push(["ok", `${f.name}：找到 ${n} 個圖案`]); }
+      else { const img = await decodeImage(f); await addPattern({ name: f.name || "image", kind: "img", cv: img.cv, w: img.w, h: img.h, circle: img.circle, detected: img.detected, src: { type: "file", key } }, true); }
+      st.files.set(key, { name: f.name, type: isPdf ? "application/pdf" : (f.type || "image/png"), b64: toB64(buf) });
+    } catch (e) { notes.push(["err", `無法加入 ${f.name}：` + (e && e.message ? e.message : e)]); }
+  }
+  renderLib(); await refreshAll(); if (notes.length) setMsgs([...notes]);
+}
+async function addSample(kind, label, saved, place) {
+  const buf = await buildSamplePdf(kind).arrayBuffer();
+  return addPdfBytes(new Uint8Array(buf), `測試圖案：${label}`, { type: "sample", kind, label }, saved, place);
+}
+
+/* ---------------- 專案：存檔與開啟 ---------------- */
+/* 下載：發佈頁面用平台的下載功能，本機開啟時退回一般下載連結 */
+const downloadsReady = (window.claude && typeof window.claude.use === "function")
+  ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+async function saveBlob(blob, filename) {
+  const dl = await downloadsReady;
+  if (dl) { await dl.save({ filename, data: blob }); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+
+async function saveProject() {
+  const files = {}; for (const [k, f] of st.files) if (st.lib.some(p => p.src.type === "file" && p.src.key === k)) files[k] = f;
+  const proj = { app: "lens-tray-editor", version: 1, state: JSON.parse(snapshot()), lib: st.lib.map(p => ({ id: p.id, name: p.name, src: p.src, circle: p.circle })), files };
+  try { await saveBlob(new Blob([JSON.stringify(proj)], { type: "application/json" }), "tray_project.json"); $("saveNote").textContent = "專案已存檔。"; }
+  catch (e) { $("saveNote").textContent = e && e.code === "declined" ? "已取消存檔。" : "存檔失敗：" + (e && e.message ? e.message : e); }
+}
+async function openProject(file) {
+  let proj; try { proj = JSON.parse(await file.text()); } catch (e) { setMsgs([["err", "這不是專案檔（無法讀取）。"]]); return; }
+  if (!proj || proj.app !== "lens-tray-editor" || !proj.state || !Array.isArray(proj.lib)) { setMsgs([["err", "這不是本編輯器的專案檔。"]]); return; }
+  st.run++; st.lib = []; st.pool = new Map(); st.files = new Map(Object.entries(proj.files || {})); st.slots = []; st.dims = { cols: 0, rows: 0 }; st.full = null; st.nextId = 1;
+  st.nextFile = 1 + Math.max(0, ...Array.from(st.files.keys()).map(k => +k.slice(1) || 0));
+  const groups = new Map();     // 同一個來源檔的圖案一起還原
+  for (const e of proj.lib) { const g = e.src.type === "sample" ? "s:" + e.src.kind : "f:" + e.src.key; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(e); }
+  const errs = [];
+  for (const [g, list] of groups) {
+    try {
+      const src = list[0].src, saved = list.map(e => ({ id: e.id, name: e.name, page: e.src.page || 1, idx: e.src.idx || 0, circle: e.circle }));
+      if (src.type === "sample") await addSample(src.kind, src.label || src.kind, saved, false);
+      else {
+        const f = st.files.get(src.key); if (!f) throw new Error("專案檔裡缺少原始圖檔");
+        if (f.type === "application/pdf") await addPdfBytes(fromB64(f.b64), f.name, { type: "file", key: src.key }, saved, false);
+        else { const img = await decodeImage(new Blob([fromB64(f.b64)], { type: f.type })); await addPattern({ id: list[0].id, name: list[0].name, kind: "img", cv: img.cv, w: img.w, h: img.h, circle: list[0].circle || img.circle, detected: img.detected, src: { type: "file", key: src.key } }, false); }
+      }
+    } catch (e) { errs.push(["err", `有圖案無法還原：` + (e && e.message ? e.message : e)]); }
+  }
+  st.lib.sort((a, b) => a.id - b.id);
+  restore(proj.state); hist.stack = []; hist.i = -1; view.tray = null; view.lens = null;
+  renderLib(); await refreshAll(); if (errs.length) setMsgs(errs);
+}
+
+/* ---------------- 輸出整盤 PDF ---------------- */
+/* kind：tray 整盤一頁；pages 一個 PDF、一頁一片；files 每片各存一個 PDF */
+const setExp = dis => { for (const b of document.querySelectorAll(".exp")) b.disabled = dis; };
+async function saveAll(kind) {
+  kind = kind || "tray";
+  const t = readTray(); if (trayErrors(t).length || st.busy) return;
+  st.busy = true; setExp(true);
+  const note = $("saveNote"), run = ++st.run, stale = () => run !== st.run;
+  try {
+    const todo = st.slots.map((s, i) => i).filter(i => st.slots[i].pat && !st.slots[i].bad), items = [];
+    for (let k = 0; k < todo.length; k++) {
+      const i = todo[k], s = st.slots[i], p = slotP(i);
+      note.textContent = `處理第 ${k + 1} / ${todo.length} 格…`; await tick();
+      const roi = await renderSlotROI(getPat(s.pat), s, p, t.dpi, slotCenter(i, t));
+      const out = await compensate(roi, p, t.dpi, stale); if (!out) throw new Error("設定在處理途中被變更，請再按一次。");
+      const fin = t.bg === "white" ? knockWhite(out) : t.bg === "orig" ? keepAlpha(out) : out, q = 72 / t.dpi;
+      items.push({ slot: i + 1, x: roi.x0 * q, y: roi.y0 * q, w: roi.W * q, h: roi.H * q, W: roi.W, H: roi.H, rgb: fin.rgb, alpha: fin.alpha });
+    }
+    note.textContent = "寫出 PDF…"; await tick();
+    if (kind === "tray") {
+      const blob = await buildTrayPdf(t, items);
+      await saveBlob(blob, `tray_${t.cols}x${t.rows}_${t.dpi}dpi.pdf`);
+      note.textContent = `已輸出（${Math.round(blob.size / 1024)} KB，${todo.length} 格，RGB，${t.dpi} DPI）`;
+    } else if (kind === "pages") {
+      const blob = await buildLensPdf(t, items);
+      await saveBlob(blob, `lenses_${items.length}pages_${t.dpi}dpi.pdf`);
+      note.textContent = `已輸出（${Math.round(blob.size / 1024)} KB，一頁一片共 ${items.length} 頁，${t.dpi} DPI）`;
+    } else {
+      for (let k = 0; k < items.length; k++) {
+        note.textContent = `下載第 ${k + 1} / ${items.length} 個檔…`;
+        const blob = await buildLensPdf(t, [items[k]]);
+        for (let tries = 0; ; tries++) {
+          try { await saveBlob(blob, `lens_${String(items[k].slot).padStart(2, "0")}_${t.dpi}dpi.pdf`); break; }
+          catch (e) { if (e && e.code === "rate_limited" && tries < 20) { await new Promise(r => setTimeout(r, 1500)); continue; } throw e; }
+        }
+        if (!(await downloadsReady)) await new Promise(r => setTimeout(r, 400));      // 一般瀏覽器：連續下載之間稍停一下
+      }
+      note.textContent = `已輸出 ${items.length} 個 PDF 檔（每片一檔，${t.dpi} DPI）`;
+    }
+  } catch (e) {
+    const code = e && e.code; note.textContent = code === "declined" ? "已取消下載。" : code === "rate_limited" ? "下載提示尚未關閉，請稍後再按。" : code ? "這個環境無法下載檔案。" : "輸出失敗：" + (e && e.message ? e.message : e);
+  } finally { st.busy = false; schedule(); }
+}
+
+/* ---------------- 畫布互動：選取、移動、縮放、旋轉、平移、縮放檢視 ---------------- */
+function setMode(mode) {
+  view.mode = mode; $("vTray").setAttribute("aria-pressed", mode === "tray"); $("vLens").setAttribute("aria-pressed", mode === "lens"); $("showGrp").hidden = mode !== "lens";
+  if (mode === "lens") fitView("lens"); drawStage(); schedule();
+}
+function setShow(show) { view.show = show; for (const b of document.querySelectorAll("#showGrp button")) b.setAttribute("aria-pressed", b.dataset.show === show); drawStage(); schedule(); }
+function select(i) { if (i === st.sel) return; st.sel = i; st.full = null; if (view.mode === "lens") fitView("lens"); updatePanel(); drawStage(); schedule(); }
+function zoomAt(f, sx, sy) { const v = curView(), z = Math.min(Math.max(v.z * f, .5), 600); v.x = sx - (sx - v.x) * z / v.z; v.y = sy - (sy - v.y) * z / v.z; v.z = z; drawStage(); }
+{
+  const cv = $("stage"); let drag = null;
+  const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const near = (a, b, d) => Math.hypot(a.x - b.x, a.y - b.y) <= d;
+  const inPoly = (q, cs) => { let c = false; for (let i = 0, j = cs.length - 1; i < cs.length; j = i++) if ((cs[i].y > q.y) !== (cs[j].y > q.y) && q.x < (cs[j].x - cs[i].x) * (q.y - cs[i].y) / (cs[j].y - cs[i].y) + cs[i].x) c = !c; return c; };
+  function hit(q) {
+    if (view.mode === "lens" && view.show !== "edit") return null;
+    const g = handleGeo(); if (!g) return null;
+    if (near(q, g.rot, 10)) return "rot"; if (g.cs.some(c => near(q, c, 9))) return "scale"; if (inPoly(q, g.cs)) return "move"; return null;
+  }
+  function slotAt(q) {
+    const v = view.tray, t = readTray(), w = { x: (q.x - v.x) / v.z, y: (q.y - v.y) / v.z }; let best = -1, bd = Infinity;
+    st.slots.forEach((s, i) => { const c = slotCenter(i, t), d = Math.hypot(c.x - w.x, c.y - w.y); if (d < bd) { bd = d; best = i; } });
+    return best >= 0 && bd <= slotP(best).outerD / 2 + 1.5 ? best : -1;
+  }
+  cv.addEventListener("pointerdown", e => {
+    const q = pos(e); cv.setPointerCapture(e.pointerId);
+    let h = hit(q);
+    if (!h && view.mode === "tray") { const i = slotAt(q); if (i >= 0) { select(i); h = hit(q) === "move" ? "move" : null; if (!h) { drag = { type: "none" }; return; } } }
+    if (h) { const s = st.slots[st.sel], g = handleGeo(); drag = { type: h, q0: q, s0: { px: s.px, py: s.py, s: s.s, rot: s.rot }, c: g.c, moved: false }; liveSlot = st.sel; }
+    else { const v = curView(); drag = { type: "pan", q0: q, x0: v.x, y0: v.y }; cv.style.cursor = "grabbing"; }
+  });
+  cv.addEventListener("pointermove", e => {
+    const q = pos(e);
+    if (!drag) { const h = hit(q); cv.style.cursor = h === "rot" ? "crosshair" : h === "scale" ? "nwse-resize" : h === "move" ? "move" : "default"; return; }
+    const v = curView(), s = st.slots[st.sel];
+    if (drag.type === "pan") { v.x = drag.x0 + q.x - drag.q0.x; v.y = drag.y0 + q.y - drag.q0.y; drawStage(); return; }
+    if (drag.type === "none") return;
+    drag.moved = true;
+    if (drag.type === "move") { s.px = drag.s0.px + (q.x - drag.q0.x) / v.z; s.py = drag.s0.py + (q.y - drag.q0.y) / v.z; }
+    else if (drag.type === "scale") { const d0 = Math.hypot(drag.q0.x - drag.c.x, drag.q0.y - drag.c.y) || 1; s.s = Math.min(Math.max(drag.s0.s * Math.hypot(q.x - drag.c.x, q.y - drag.c.y) / d0, .02), 50); }
+    else { let a = drag.s0.rot + (Math.atan2(q.y - drag.c.y, q.x - drag.c.x) - Math.atan2(drag.q0.y - drag.c.y, drag.q0.x - drag.c.x)) * 180 / Math.PI; if (e.shiftKey) a = Math.round(a / 15) * 15; s.rot = ((a + 540) % 360) - 180; }
+    updatePanel(); drawStage();
+  });
+  const end = () => {
+    cv.style.cursor = "default"; if (!drag) return; const d = drag; drag = null;
+    if (d.moved) { const s = st.slots[st.sel]; s.px = +s.px.toFixed(3); s.py = +s.py.toFixed(3); s.s = +s.s.toFixed(4); s.rot = +s.rot.toFixed(2); s.thumb = null; s.key = ""; liveSlot = -1; changed(); } else liveSlot = -1;
+  };
+  cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+  cv.addEventListener("dblclick", e => { if (view.mode === "tray") { const i = slotAt(pos(e)); if (i >= 0) { select(i); setMode("lens"); } } else setMode("tray"); });
+  cv.addEventListener("wheel", e => { e.preventDefault(); const q = pos(e); zoomAt(Math.exp(-e.deltaY * .0015), q.x, q.y); }, { passive: false });
+  new ResizeObserver(() => { if (!view.tray) return; drawStage(); }).observe($("stagebox"));
+}
+$("nav").addEventListener("click", e => {
+  const t = readTray(), r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * t.pageW, y = (e.clientY - r.top) / r.height * t.pageH; let best = -1, bd = Infinity;
+  st.slots.forEach((s, i) => { const c = slotCenter(i, t), d = Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = i; } }); if (best >= 0) select(best);
+});
+
+/* ---------------- 其他事件 ---------------- */
+for (const id of ["cols", "rows", "pitchX", "pitchY", "orgX", "orgY", "pageW", "pageH", "innerD", "outerD", "R", "ink"]) $(id).addEventListener("input", () => { if (id !== "innerD" && id !== "outerD" && id !== "R" && id !== "ink") view.tray = null; changed(); });
+for (const id of ["dpi", "bgMode"]) $(id).addEventListener("change", changed);
+$("alpha").addEventListener("input", () => { $("alphaNum").value = $("alpha").value; changed(); });
+$("alphaNum").addEventListener("input", () => { $("alpha").value = $("alphaNum").value; changed(); });
+$("sPat").addEventListener("change", () => { setSlotPattern(st.sel, $("sPat").value ? +$("sPat").value : null); changed(); });
+const touchSlot = () => { const s = st.slots[st.sel]; s.thumb = null; s.key = ""; };
+for (const [id, fn] of [["sX", (s, v) => s.px = v], ["sY", (s, v) => s.py = v], ["sScale", (s, v) => s.s = Math.min(Math.max(v, 2), 5000) / 100], ["sRot", (s, v) => s.rot = v]])
+  $(id).addEventListener("input", () => { const v = +$(id).value; if ($(id).value === "" || Number.isNaN(v)) return; fn(st.slots[st.sel], v); touchSlot(); changed(); });
+for (const [id, k] of [["sAlpha", "alpha"], ["sR", "R"], ["sInner", "innerD"], ["sOuter", "outerD"], ["sInk", "ink"]])
+  $(id).addEventListener("input", () => { const v = $(id).value.trim(), s = st.slots[st.sel]; if (v === "" || Number.isNaN(+v)) delete s.ov[k]; else s.ov[k] = +v; touchSlot(); changed(); });
+for (const b of document.querySelectorAll("[data-fit]")) b.addEventListener("click", () => { fitSlot(st.sel, b.dataset.fit); touchSlot(); changed(); });
+$("clearSlot").addEventListener("click", () => { setSlotPattern(st.sel, null); changed(); });
+$("resetSlot").addEventListener("click", () => { const s = st.slots[st.sel]; s.ov = {}; s.rot = 0; fitSlot(st.sel, "circle"); touchSlot(); changed(); });
+$("copyAll").addEventListener("click", () => { const a = st.slots[st.sel]; st.slots.forEach(s => { if (s === a) return; s.ov = { ...a.ov }; if (s.pat === a.pat) { s.px = a.px; s.py = a.py; s.s = a.s; s.rot = a.rot; } s.thumb = null; s.key = ""; }); changed(); });
+$("sweep").addEventListener("click", () => {
+  const from = +$("aFrom").value, to = +$("aTo").value, idx = st.slots.map((s, i) => i).filter(i => st.slots[i].pat);
+  if (!idx.length || Number.isNaN(from) || Number.isNaN(to)) { setMsgs([["warn", "先把圖案放進格子，再分配 α。"]]); return; }
+  idx.forEach((i, k) => { st.slots[i].ov.alpha = Math.round((idx.length > 1 ? from + (to - from) * k / (idx.length - 1) : from) * 20) / 20; }); changed();
+});
+$("file").addEventListener("change", async e => { const fs = Array.from(e.target.files || []); e.target.value = ""; if (fs.length) await addFiles(fs); });
+$("sample").addEventListener("click", async () => {
+  try { const t = readTray(); if (!trayErrors(t).length) syncSlots(t); await addSample($("sampleSel").value, $("sampleSel").selectedOptions[0].textContent, null, true); renderLib(); await refreshAll(); }
+  catch (e) { setMsgs([["err", "無法加入測試圖案：" + (e && e.message ? e.message : e)]]); }
+});
+$("projSave").addEventListener("click", saveProject);
+$("pruneLib").addEventListener("click", () => deletePatterns(st.lib.filter(p => !st.slots.some(s => s.pat === p.id)).map(p => p.id)));
+$("projOpen").addEventListener("change", async e => { const f = e.target.files[0]; e.target.value = ""; if (f) await openProject(f); });
+$("save").addEventListener("click", () => saveAll("tray")); $("savePages").addEventListener("click", () => saveAll("pages")); $("saveFiles").addEventListener("click", () => saveAll("files"));
+$("undo").addEventListener("click", () => stepHistory(-1)); $("redo").addEventListener("click", () => stepHistory(1));
+$("vTray").addEventListener("click", () => setMode("tray")); $("vLens").addEventListener("click", () => setMode("lens"));
+for (const b of document.querySelectorAll("#showGrp button")) b.addEventListener("click", () => setShow(b.dataset.show));
+$("zIn").addEventListener("click", () => { const s = stageSize(); zoomAt(1.25, s.w / 2, s.h / 2); });
+$("zOut").addEventListener("click", () => { const s = stageSize(); zoomAt(.8, s.w / 2, s.h / 2); });
+$("zFit").addEventListener("click", () => { fitView(view.mode); drawStage(); });
+document.addEventListener("keydown", e => {
+  const tag = (e.target.tagName || "").toLowerCase(), typing = tag === "input" || tag === "select" || tag === "textarea", mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); stepHistory(e.shiftKey ? 1 : -1); return; }
+  if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); stepHistory(1); return; }
+  if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveProject(); return; }
+  if (typing) return;
+  const s = st.slots[st.sel]; if (!s) return;
+  const step = e.shiftKey ? .5 : .05, mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (mv && s.pat) { e.preventDefault(); s.px = +(s.px + mv[0]).toFixed(3); s.py = +(s.py + mv[1]).toFixed(3); touchSlot(); changed(); }
+  else if ((e.key === "Delete" || e.key === "Backspace") && s.pat) { e.preventDefault(); setSlotPattern(st.sel, null); changed(); }
+  else if (e.key === "Tab") { e.preventDefault(); select((st.sel + (e.shiftKey ? st.slots.length - 1 : 1)) % st.slots.length); }
+});
+
+if (typeof pdfjsLib === "undefined") { setMsgs([["err", "PDF 元件載入失敗（需要連線到 cdnjs.cloudflare.com）。圖片仍可使用。"]]); $("sample").disabled = true; }
+else pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+loadSettings();
+refreshAll();
+</script>
+</body>
+</html>
